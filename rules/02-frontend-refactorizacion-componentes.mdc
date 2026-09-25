@@ -6,45 +6,47 @@ globs:
 alwaysApply: false
 ---
 
-# Refactorización de Componentes Frontend — Token Lens
+# Refactorización de Componentes Frontend
 
-Cuando mejores o refactorices componentes frontend de **Antigravity Liquid Token Lens**, conserva siempre el comportamiento existente.
+Cuando mejores componentes frontend de **Antigravity Liquid Token Lens**, conserva siempre el comportamiento existente.
 
 ## Reglas obligatorias
 
-- Conserva la lógica funcional y la física de fluidos existente.
-- Mantén estricta compatibilidad con las interfaces de props actuales (`TokenMetricsProps`, `LiquidGlassCardProps`).
-- No cambies contratos de componentes sin justificarlo técnicamente.
-- No rompas llamadas a `HttpTokenApi` ni la sincronización en tiempo real del hook `useTokenStream`.
-- Extrae componentes solo si mejora la claridad, la separación de responsabilidades o la mantenibilidad.
-- Evita sobreingeniería y duplicación de wrappers de estilos.
+- Conserva la lógica funcional existente.
+- Mantén compatibilidad con las props actuales.
+- No cambies contratos de componentes sin justificarlo.
+- No rompas formularios, llamadas a `HttpTokenApi` ni estado de `useTokenStream`.
+- Extrae componentes solo si mejora claridad, reutilización o mantenibilidad.
+- Evita sobreingeniería y duplicación.
 - Mejora nombres de clases, estructura semántica y jerarquía HTML.
 - Usa elementos semánticos cuando aplique: `header`, `main`, `section`, `nav`, `aside`, `footer`, `button`, `form`, `label`.
-- No mezcles paradigmas de estilos (Tailwind puro vs estilos inline desordenados).
+- No mezcles paradigmas de estilos.
 
 ## Superficie de producto
 
 Aplica especialmente en:
-- `LiquidGlassCard` y filtros de turbulencia SVG (`feTurbulence`, `feDisplacementMap`).
-- `TokenLiquidCard` y el medidor de nivel líquido reactivo.
-- Panel de desglose granular (Prompt, Output, Cache, Thinking).
-- Indicadores de cuota (TPM / RPM) y reseteo temporal.
-- Panel de estimación de costos en USD.
-- Diálogos y modales de configuración (claves de API, filtros de sesión).
-- Toasts de feedback de estado y alertas de umbral de saturación.
+
+- HeaderStatusBar (selector de sesión, sync WS).
+- TokenLiquidCard.
+- GranularBreakdownPanel y estimador financiero.
+- RateLimitMeter.
+- HUD líquido flotante.
+- Modales (detalle sesión, umbrales, configuración, reset métricas).
+- Selector de sesión.
+- Toasts de error/éxito de telemetría.
 
 ## Botones y acciones
 
-Intención clara en los textos de acción: "Conectar Sesión", "Actualizar Cuotas", "Expandir Métricas", "Colapsar Tarjeta", "Reiniciar Medidor", "Guardar Umbral". No uses textos vagos como "OK" o "Click aquí".
+Intención clara: Observar sesión, Cambiar sesión, Refrescar cuotas, Expandir desglose, Vaciar métricas, Cancelar. No uses “OK” / “Click aquí”.
 
-Si la acción resetea estadísticas o borra el histórico local, debe ser visualmente evidente con color de advertencia y solicitar confirmación.
+Si la acción es destructiva (vaciar historial de métricas, reset de sesión observada, mutación destructiva de estado local), debe ser visualmente evidente y pedir confirmación.
 
 ## Estados obligatorios
 
-Toda tarjeta o widget debe manejar explícitamente: `loading`, `error`, `empty`, `active`, `critical` (saturación > 85%) y `disconnected`.
+`loading`, `error`, `empty`, `success`, `disabled`, y cuando aplique: streaming, warning, critical.
 
-Textos en español: "Conectando al agente...", "Error de lectura", "Sin sesión activa", "Capacidad óptima", "Saturación inminente".
+Textos en español: Cargando, Error, Sin sesión, Sin métricas, Guardado.
 
 ## Accesibilidad
 
-Navegación por teclado, foco visible, contraste suficiente en modo oscuro, atributos ARIA y no depender exclusivamente del color para comunicar el agotamiento de tokens (incluir texto y porcentaje explícito).
+Navegación por teclado, focus visible, contraste, labels, no depender solo del color.

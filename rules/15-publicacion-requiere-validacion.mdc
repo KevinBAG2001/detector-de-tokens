@@ -1,5 +1,5 @@
 ---
-description: Prohibido publicar, push, PR o MR sin validación explícita de Kevin
+description: Prohibido publicar, push, PR o MR sin validación explícita del dueño del repo
 alwaysApply: true
 ---
 
@@ -7,27 +7,28 @@ alwaysApply: true
 
 Kevin valida **todo** lo que salga de esta máquina hacia GitHub/GitLab u otro remoto.
 
-## Prohibido sin frase explícita de Kevin en ese turno
+## Prohibido sin frase explícita del usuario en ese turno
 
-No ejecutar ni "aprovechar" para:
-- `git push` / `git push -u` / `git push --force`
+No ejecutar ni “aprovechar” para:
+
+- `git push` / `git push -u` / force push
 - Crear, abrir o fusionar **PR** (GitHub) o **MR** (GitLab)
-- Publicar el repositorio, cambiar visibilidad, crear releases, tags remotos o paquetes
-- Invitar colaboradores o modificar configuraciones del repositorio remoto
-- Comandos CLI como `gh pr create`, `glab mr create` o equivalentes
+- Publicar el repo, cambiar visibilidad, crear release, tag remoto, paquete npm
+- Invitar collaborators o cambiar reglas del remoto
+- `gh pr create`, `glab mr create`, o equivalentes
 
-Preparar el diff, el mensaje de commit o el texto descriptivo **en el chat** está permitido. Enviarlo o subirlo sin confirmación está estrictamente prohibido.
+Preparar el diff, el mensaje de commit o el texto del PR **en el chat** está bien. Subirlo no.
 
 ## Obligatorio
 
-1. Mostrar con claridad qué se publicaría (ramas, commits, archivos modificados).
-2. Esperar la validación explícita de Kevin: por ejemplo "haz el push", "abre el PR", "crea el commit".
-3. Si no está esa instrucción explícita en el mensaje actual, **detenerse**. Una indicación de turnos anteriores no es válida para el presente.
+1. Mostrar qué se publicaría (ramas, commits, archivos).
+2. Esperar validación: por ejemplo “haz el push”, “abre el PR”, “mergea”.
+3. Si no está esa orden en el mensaje actual, **parar**. Un “súbelo cuando puedas” de hace tres turnos no cuenta.
 
 ## Commits locales
 
-Un `git commit` local también requiere que Kevin lo ordene explícitamente. No es una publicación remota, pero tampoco se realiza de forma autónoma.
+Un `git commit` local también requiere que el usuario lo pida. No es publicación remota, pero tampoco se hace solo.
 
 ## Excepción
 
-Ninguna. Ni ante fallos de red, ni para sincronizar ramas, ni para pipelines de CI. Primero validación directa.
+Ninguna. Ni “el push falló y reintento”, ni “para que existan las ramas qa/dev”, ni CI. Primero validación.

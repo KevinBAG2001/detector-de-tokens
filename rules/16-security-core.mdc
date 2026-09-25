@@ -5,43 +5,57 @@ alwaysApply: true
 
 # Seguridad — Mandatos Universales
 
-Esta regla complementa `04-seguridad-git.mdc`, `00-regla-maestra-proyecto.mdc` y `15-publicacion-requiere-validacion.mdc`. No sustituye sus responsabilidades de dominio, arquitectura ni publicación.
+Esta regla complementa `04-seguridad-git.mdc`, `00-regla-maestra-proyecto.mdc` y
+`15-publicacion-requiere-validacion.mdc`. No sustituye sus responsabilidades de
+dominio de telemetría de tokens, arquitectura ni publicación.
 
 ## Alcance y límites
 
-- No ejecutar herramientas ofensivas ni acceder a infraestructura externa no autorizada.
-- No modificar archivos fuera del alcance solicitado por Kevin.
-- No instalar dependencias ni cambiar el stack sin autorización explícita de Kevin.
-- No exponer secretos, API Keys, contraseñas, tokens de sesión ni rutas sensibles en respuestas, logs del chat, commits ni artefactos versionados.
-- Si un secreto aparece en el código o en salida de herramientas, reportarlo **redactado** (por ejemplo `AIzaSy****`, `TOKEN_LENS_****`) con archivo y línea.
+- No ejecutar herramientas ofensivas ni acceder a infraestructura externa no
+  autorizada.
+- No modificar archivos fuera del alcance solicitado por el usuario.
+- No instalar dependencias ni cambiar el stack sin autorización explícita.
+- No exponer secretos, tokens, contraseñas, cookies, claves privadas ni cadenas
+  de conexión en respuestas, logs del chat, commits ni artefactos versionados.
+- Si un secreto aparece en el código o en salida de herramientas, reportarlo
+  **redactado** (por ejemplo `ghp_****`, `TOKEN_LENS_****`) con archivo y línea.
 
 ## Operaciones Git y publicación
 
-- Respeta estrictamente `15-publicacion-requiere-validacion.mdc`: sin `push`, PR, MR, merge remoto, tag remoto ni publicación sin orden explícita de Kevin en el turno actual.
-- Los `git commit` locales también requieren petición explícita de Kevin.
-- Prohibido el uso de `--no-verify`, force push u operaciones destructivas sin autorización y contexto de impacto.
+- Respeta `15-publicacion-requiere-validacion.mdc`: sin `push`, PR, MR, merge
+  remoto, tag remoto ni publicación sin orden explícita del usuario en el turno
+  actual.
+- Los `git commit` locales también requieren petición explícita del usuario.
+- No usar `--no-verify`, force push ni operaciones destructivas de Git sin
+  autorización explícita y contexto de impacto.
 
 ## Evidencia y declaración de riesgos
 
-- No declarar una vulnerabilidad **confirmada** sin evidencia verificable en el repositorio o en salida de herramientas autorizadas del proyecto.
+- No declarar una vulnerabilidad **confirmada** sin evidencia verificable en el
+  repositorio o en salida de herramientas autorizadas del proyecto.
 - Distinguir siempre:
-  - **Vulnerabilidad confirmada:** reproducible o demostrable con evidencia en el código o dependencias.
-  - **Riesgo potencial:** requiere validación adicional; no elevar la severidad sin prueba.
-- No inventar CVE, CWE ni puntuaciones CVSS. Si no hay información suficiente, usar `CVSS: Pendiente de validación`.
+  - **Vulnerabilidad confirmada** — reproducible o demostrable con evidencia.
+  - **Riesgo potencial** — requiere validación adicional; no elevar severidad
+    sin prueba.
+- No inventar CVE, CWE ni puntuaciones CVSS. Si no hay información suficiente,
+  usar `CVSS: Pendiente de validación`.
 - No afirmar que una dependencia es vulnerable solo por antigüedad de versión.
 
 ## Relación con otras reglas
 
 | Tema | Regla principal | Esta regla aporta |
-|---|---|---|
-| Zero-Leakage, validación de logs | `04-seguridad-git.mdc` | Mandatos transversales y evidencia |
-| Tests de seguridad y streaming | `11-testing-qa-escalabilidad.mdc` | Criterio de hallazgo y no falsificación |
+|------|-----------------|-------------------|
+| Path traversal, token LAN, GEMINI_API_KEY | `04-seguridad-git.mdc` | Mandatos transversales y evidencia |
+| Tests de seguridad de rutas | `11-testing-qa-escalabilidad.mdc` | Criterio de hallazgo y no falsificación |
 | No mostrar secretos en UI | `07-accesibilidad-responsive-rendimiento.mdc` | Prohibición transversal en todo output |
-| Investigación externa | `13-integracion-last30days-skill.mdc` | No investigar `.env` ni logs del usuario |
-| Gestor de paquetes pnpm | `14-gestor-paquetes-pnpm.mdc` | Cadena de suministro en `18-*` |
-| Auditoría de código seguro | `17-auditoria-codigo-seguro.mdc` | Protocolo detallado de hallazgos |
+| Investigación externa | `13-integracion-last30days-skill.mdc` | No investigar `.env` ni tokens del usuario |
+| Gestor de paquetes | `14-gestor-paquetes-pnpm.mdc` | No sustituir; cadena de suministro en `18-*` |
+| Auditoría de código | `17-auditoria-codigo-seguro.mdc` | Protocolo detallado de hallazgos |
 
 ## Excepciones documentadas
 
-- Investigación con skills externas: permitida **fuera** del runtime según `13-integracion-last30days-skill.mdc`; prohibida dentro de `apps/`, Docker, CI o lockfiles.
-- Preparar mensajes de commit o descripciones técnicas en el chat: permitido; ejecutar la mutación: prohibido sin orden de Kevin.
+- `npx skills` / investigación last30days: permitido **fuera** del runtime de
+  Antigravity Liquid Token Lens según `13-integracion-last30days-skill.mdc`; prohibido dentro de
+  `apps/`, Docker, CI o lockfiles.
+- Preparar mensajes de commit o texto de PR en el chat: permitido; ejecutar la
+  publicación: prohibido sin validación (`15-publicacion-requiere-validacion.mdc`).
