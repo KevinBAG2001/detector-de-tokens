@@ -9,40 +9,36 @@ globs:
 alwaysApply: false
 ---
 
-# Dirección Visual Avanzada — Liquid Glass Token Lens
+# Dirección Visual Avanzada
 
-Actúa como especialista senior en dirección visual y UX de herramientas para desarrolladores de inteligencia artificial.
+Actúa como especialista senior en dirección visual y UX de herramientas de desarrollo.
 
-Esta regla aplica a **Antigravity Liquid Token Lens**: React 19, TypeScript, Vite 6, Tailwind CSS 4, `motion/react`.
+Esta regla aplica a **Antigravity Liquid Token Lens**, visualizador de telemetría de tokens en el navegador: React 19, TypeScript, Vite 6, Tailwind CSS 4, motion, lucide.
 
 ## Contexto visual obligatorio
 
-Antes de rediseñar o agregar un componente, define:
-- **Producto:** Antigravity Liquid Token Lens — medidor táctil de tokens de IA en tiempo real.
-- **Usuario:** Desarrollador e ingeniero de software que utiliza Google Antigravity y modelos Gemini.
-- **Elemento Héroe:** La tarjeta `TokenLiquidCard` de cristal líquido translúcido con simulación física de fluido y refracción SVG.
-- **Herramientas complementarias:** Panel de desglose granular (Prompt, Output, Cache, Thinking), barra de velocidad TPM/RPM y medidor de costos en USD.
+Antes de rediseñar, define:
 
-**Tono:** Técnico, denso, inmersivo, táctil y oscuro. No dashboard institucional administrativo. No plantilla SaaS genérica.
+- Producto: Antigravity Liquid Token Lens — telemetría de tokens Liquid Glass.
+- Usuario: desarrollador que opera agentes Antigravity / Gemini y necesita ver cuota en vivo.
+- Acción principal de la pantalla.
+- Jerarquía: el TokenLiquidCard es el héroe; GranularBreakdownPanel y RateLimitMeter son herramientas.
 
-## Tokens de color y textura
+Tono: técnico, denso, oscuro, profesional, cristal líquido. No dashboard admin institucional. No plantilla SaaS genérica.
 
-- Fondo general: `#090d16`.
-- Paneles y tarjetas de vidrio: `rgba(17, 24, 39, 0.45)` con `backdrop-blur-xl`.
-- Bordes de cristal: `rgba(255, 255, 255, 0.12)` con bisel interior de luz (`inset 1px 1px 1px rgba(255,255,255,0.3)`).
-- Acentos cromáticos del fluido:
-  - Seguro: `#00F0FF` (Cian Neón).
-  - Alerta: `#F59E0B` (Ámbar Eléctrico).
-  - Crítico: `#EF4444` (Carmesí Lava).
-- Texto: `slate-100` / `slate-300` / `slate-500`.
-- Tipografía numérica: `JetBrains Mono` / `ui-monospace` para conteos exactos de tokens y cifras en USD.
+## Tokens
+
+- Fondo `#0f111a`, paneles `#181c2d`, bordes `#23283b`.
+- Acento `#00F0FF` (safe), advertencia `#F59E0B`, peligro `#EF4444`.
+- Texto slate-200 / slate-400.
+- Mono: JetBrains Mono / ui-monospace.
 
 ## Qué evitar
 
-- Cards de marketing con ilustraciones vectoriales genéricas.
-- Gráficas de pastel planas o tablas de datos sin dinamismo.
-- Gradientes decorativos planos que no respondan al estado de saturación de la ventana de contexto.
+- Cards de marketing, ilustraciones vacías, gradientes decorativos.
+- Layouts de intranet RRHH / tablas de trabajadores.
+- Copiar marca o assets de productos de terceros no licenciados.
 
-## Densidad y microinteracciones
+## Densidad
 
-Alta densidad de información. Cada elemento visual debe comunicar el estado de la ventana de contexto, el ahorro por tokens en caché o el tiempo de reseteo de la cuota. Microanimaciones de oleaje y resorte con `motion/react` para brindar sensación de materia viva.
+Alta. Cada píxel debe servir a leer la cuota, el desglose granular o no filtrar datos sensibles.

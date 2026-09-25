@@ -1,5 +1,5 @@
 ---
-description: "Auditoría de código seguro para TypeScript/React/Fastify en Antigravity Liquid Token Lens."
+description: "Auditoría de código seguro para TypeScript/React/Express en Antigravity Liquid Token Lens."
 globs:
   - "apps/server/**/*.ts"
   - "apps/web/**/*.ts"
@@ -7,70 +7,99 @@ globs:
 alwaysApply: false
 ---
 
-# Auditoría de Código Seguro — Token Lens
+# Auditoría de Código Seguro — Antigravity Liquid Token Lens
 
-Actúa como revisor de seguridad defensiva en el monorepo TypeScript de **Antigravity Liquid Token Lens**.
+Actúa como revisor de seguridad defensiva en el monorepo TypeScript de Antigravity Liquid Token Lens.
 
-Esta regla **complementa** — no reemplaza — `03-backend-ddd-node.mdc`, `04-seguridad-git.mdc` y `11-testing-qa-escalabilidad.mdc`.
+Esta regla **complementa** — no reemplaza — `03-backend-ddd-node.mdc`,
+`04-seguridad-git.mdc` y `11-testing-qa-escalabilidad.mdc`.
 
 ## Superficies del repositorio
 
-- **Backend:** Fastify/Express, WebSocket, observador de `transcript.jsonl`, cliente de Google Gen AI, validación de rutas de logs.
-- **Frontend:** React 19, `HttpTokenApi`, cliente WebSocket, componentes Liquid Glass.
-- **Persistencia:** En memoria volátil de alta velocidad y SQLite local; sin bases de datos externas en v1.
+- **Backend:** Express, WebSocket, chokidar, GeminiApiClientAdapter (cuotas), validación de rutas de logs.
+- **Frontend:** React 19, `HttpTokenApi`, WebSocket cliente, localStorage.
+- **Sin base de datos** en v1; estado en memoria y archivos locales.
 
 ## Controles obligatorios al revisar o modificar código
 
 ### Entradas y validación
 
-- Toda entrada HTTP o evento WS (`sessionId`, `logPath`, `modelName`) debe validarse con esquemas estrictos (Zod o TypeScript) antes de llegar a la capa de aplicación.
-- Reutilizar `validarRutaLogs()`; no crear validadores ad-hoc inconsistentes.
-- Rechazar secuencias de path traversal (`..`), symlinks que apunten fuera de `ANTIGRAVITY_LOGS_ROOT` y rutas absolutas no autorizadas.
+- Toda entrada HTTP/WS (`transcriptPath`, session id, rutas bajo logs root, nombres de modelo) debe validarse antes de llegar a `AntigravityTranscriptWatcherAdapter`.
+- Reutilizar `validarRutaLogs` y `validarSessionId`; no
+  crear validadores paralelos inconsistentes.
+- Rechazar path traversal, symlinks que escapen de `ANTIGRAVITY_LOGS_ROOT` y rutas
+  absolutas no autorizadas (ver `04-seguridad-git.mdc`).
 
-### Flujo de datos y comandos
+### Ejecución y comandos
 
-- Un solo camino para el flujo de tokens: `AntigravityTranscriptWatcherAdapter` / `GeminiApiClientAdapter` → `TokenUseCases` → `TokenController` / `TokenWebSocket`.
-- Prohibido terminantemente el uso de `child_process.exec` arbitrario o ejecución de comandos de shell directos con parámetros del usuario.
+- Un solo camino de telemetría: `AntigravityTranscriptWatcherAdapter` → `StreamTokensUseCase` / `CalculateCostsUseCase` → `TokenController`.
+- Prohibido `child_process.exec` arbitrario, shells libres o concatenación de
+  comandos con entrada de usuario.
+- Las operaciones destructivas requieren confirmación contextual en UI y, cuando
+  aplique, preview no mutante.
 
 ### Autenticación y autorización
 
-- `TOKEN_LENS_API_TOKEN` obligatorio cuando `BIND_HOST` no sea loopback.
-- Middleware de autorización Bearer en endpoints HTTP y query `?token=` en WebSocket para accesos de red LAN.
-- Validación de orígenes en CORS para evitar peticiones maliciosas entre sitios.
+- `TOKEN_LENS_API_TOKEN` obligatorio cuando `BIND_HOST` no es loopback.
+- Middleware Bearer o sesión de corta duración en `/api/*`; WebSocket con `AUTH` o cookie. `?token=` no autentica.
+- `GEMINI_API_KEY` es para cuotas Gemini, no login multiusuario de Antigravity Liquid Token Lens.
+- Verificar que mutaciones validen `transcriptPath` / session antes de operar (evitar IDOR por
+  manipulación de path entre sesiones bajo la misma raíz).
 
-### Salidas, privacidad (Zero-Leakage) y logging
+### Salidas, errores y logging
 
-- **Política Zero-Leakage:** No volcar jamás prompts del usuario, código fuente analizado ni respuestas del modelo en los streams de datos o respuestas HTTP.
-- No exponer stack traces crudos ni rutas internas completas del sistema operativo en errores de API.
-- Auditoría: registrar únicamente metadatos numéricos de tokens, tiempos de respuesta y códigos de estado.
+- No filtrar stack traces, rutas absolutas del host ni tokens en respuestas API.
+- Usar sanitización existente; no loguear prompts, diffs ni
+  `GEMINI_API_KEY` en producción (**Zero-Leakage**).
+- Auditoría: metadatos de evento (duración, éxito); sin contenido sensible.
 
 ### Frontend
 
-- Prohibido `dangerouslySetInnerHTML` sin sanitización estricta previa.
-- No almacenar API Keys en `localStorage` o cookies inseguras.
-- Renderizado seguro de métricas numéricas sin inyección de código.
+- Evitar `dangerouslySetInnerHTML` sin sanitización; preferir texto escapado.
+- No persistir `TOKEN_LENS_API_TOKEN` ni `GEMINI_API_KEY` en localStorage sin
+  justificación documentada.
+- TokenLiquidCard / paneles: no renderizar contenido arbitrario de transcripts como HTML.
+
+### Cliente HTTP de cuotas
+
+- Revisar `GeminiApiClientAdapter` y callbacks de cuota ante SSRF, redirecciones abiertas
+  y exposición de API keys en URLs o logs.
 
 ### Tipado
 
-- Prohibido el uso de `any` en código de producción; utilizar tipos estrictos, `unknown` con type guards o genéricos acotados.
+- Preferir tipos estrictos sobre `any` en código de producción.
+- `any` en tests o adaptadores puntuales no es por sí solo vulnerabilidad crítica;
+  evaluar contexto y proponer `unknown` + refinamiento cuando aplique.
+
+## Pruebas de seguridad (complementa regla 11)
+
+Al corregir un defecto de seguridad, agregar o actualizar prueba que demuestre:
+
+- Rechazo 403 fuera de `ANTIGRAVITY_LOGS_ROOT`.
+- Rechazo sin token cuando `BIND_HOST` no es loopback.
+- Casos negativos de validación de entrada relevantes.
+
+No usar APIs Gemini remotas reales ni transcripts de producción en la suite.
 
 ## Protocolo de reporte de hallazgos
 
-Cuando se realice una auditoría de seguridad, cada hallazgo debe estructurarse obligatoriamente en el siguiente formato:
+Cuando esta regla produzca una auditoría o revisión de seguridad, cada hallazgo
+debe incluir:
 
 | Campo | Obligatorio |
-|---|---|
-| Identificador interno | Sí (ej. `SEC-001`) |
+|-------|-------------|
+| Identificador interno | Sí (por ejemplo `SEC-001`) |
 | Clasificación | Vulnerabilidad confirmada / Riesgo potencial |
-| CWE / OWASP | Solo si aplica con evidencia; no inventar |
+| CWE | Solo si aplica con evidencia; no inventar |
+| Categoría OWASP | Cuando corresponda |
 | Severidad cualitativa | Crítica / Alta / Media / Baja / Informativa |
-| CVSS | Solo con vector completo; si no, `Pendiente de validación` |
+| CVSS | Solo con vector completo y datos suficientes; si no, `Pendiente de validación` |
 | Confianza | Alta / Media / Baja |
-| Archivo y línea | Obligatorio cuando sea identificable |
-| Evidencia mínima | Fragmento redactado o prueba reproducible |
-| Precondiciones | Contexto de abuso |
-| Impacto | Qué se compromete (confidencialidad, integridad, etc.) |
-| Remediación | Código concreto y acotado para solucionar el fallo |
-| Validación | Test automatizado o paso de verificación |
+| Archivo y línea | Cuando sea identificable |
+| Evidencia mínima | Fragmento redactado o descripción reproducible |
+| Precondiciones | Contexto de explotación o abuso |
+| Impacto | Qué se compromete |
+| Remediación | Cambio concreto y acotado |
+| Validación | Test, paso manual o criterio de cierre |
 
 No reportar hallazgos sin evidencia verificable en el repositorio.

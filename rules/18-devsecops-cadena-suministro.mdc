@@ -14,40 +14,67 @@ globs:
 alwaysApply: false
 ---
 
-# DevSecOps y Cadena de Suministro — Token Lens
+# DevSecOps y Cadena de Suministro — Antigravity Liquid Token Lens
 
-Complementa `14-gestor-paquetes-pnpm.mdc` (gestión de paquetes) y `04-seguridad-git.mdc` (secretos y despliegue).
+Complementa `14-gestor-paquetes-pnpm.mdc` (gestión de paquetes) y
+`04-seguridad-git.mdc` (secretos y despliegue). No sustituye la regla de pnpm.
 
-## Dependencias y Cadena de Suministro
+## Dependencias
 
-- **Gestor Exclusivo:** `pnpm` con `pnpm-lock.yaml` versionado.
-- El pipeline de CI debe ejecutar `pnpm install --frozen-lockfile`.
-- Prohibido terminantemente introducir o versionar `package-lock.json`, `yarn.lock` o `bun.lock*`.
-- No agregar dependencias de terceros sin justificación técnica y análisis de huella.
-- Revisar scripts `postinstall` o `prepare` en nuevas librerías antes de instalarlas.
+- Gestor obligatorio: **pnpm** con `pnpm-lock.yaml` versionado.
+- CI debe usar `pnpm install --frozen-lockfile` (ver `.github/workflows/ci.yml`).
+- No introducir `package-lock.json`, `yarn.lock` ni `bun.lock*`.
+- No agregar dependencias sin justificación; preferir capacidades ya presentes.
+- No declarar vulnerabilidad solo por versión antigua; exigir CVE/advisory
+  verificable o evidencia de exploit aplicable al uso en Antigravity Liquid Token Lens.
+- Revisar scripts `postinstall`/`prepare` de dependencias nuevas antes de
+  aprobarlas.
 
-## Secretos y Configuración
+## Secretos y configuración
 
-- Variables sensibles (`GEMINI_API_KEY`, `TOKEN_LENS_API_TOKEN`) únicamente en variables de entorno locales o gestores de secretos del host.
-- `.env.example` documenta las variables requeridas sin valores reales de producción.
-- No incluir jamás archivos `.env` en los commits ni en las imágenes Docker.
+- Secretos solo en variables de entorno o almacenes dedicados;
+  nunca en código fuente ni en commits.
+- `.env.example` documenta variables sin valores reales de producción.
+- No commitear `.env`, `GEMINI_API_KEY`, `TOKEN_LENS_API_TOKEN` cifrado en claro, ni claves privadas.
+- En Docker Compose, `TOKEN_LENS_API_TOKEN` debe provenir del entorno del host;
+  evitar valores por defecto débiles en despliegues expuestos.
 
 ## Contenedores
 
 Archivos: `apps/server/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.yml`.
-- Imágenes base ligeras (Node Alpine) con tags específicos.
-- Usar `pnpm` en los entornos de compilación de Docker.
-- No copiar archivos `.env` ni claves privadas al contexto de build.
-- Si `BIND_HOST` se define en `0.0.0.0` dentro del contenedor, exigir obligatoriamente `TOKEN_LENS_API_TOKEN`.
+
+- Imágenes base: preferir tags fijados y actualizaciones deliberadas.
+- El servidor requiere acceso de lectura a `ANTIGRAVITY_LOGS_ROOT` montado; minimizar paquetes adicionales.
+- Evaluar ejecución como usuario no privilegiado cuando sea compatible con
+  permisos de `ANTIGRAVITY_LOGS_ROOT` montado; no modificar Dockerfiles sin autorización.
+- No copiar `.env` ni credenciales al contexto de build.
+- `docker-compose.yml` expone puertos en `127.0.0.1` por defecto; si `BIND_HOST`
+  es `0.0.0.0` dentro del contenedor, exigir `TOKEN_LENS_API_TOKEN` (coherente con
+  `04-seguridad-git.mdc`).
+- Volúmenes RO/RW sobre logs del host: riesgo inherente; documentar en revisiones
+  de despliegue, no tratarlo como bug de aplicación sin contexto.
 
 ## CI/CD
 
 Archivo: `.github/workflows/ci.yml`.
-- Pipeline estándar: `pnpm lint` → `pnpm test` → `pnpm build`.
-- No imprimir variables de entorno ni secretos en los logs de los pipelines.
-- No deshabilitar suites de pruebas de seguridad para acelerar o forzar el pase del CI.
 
-## Separación de Entornos
+- Pipeline objetivo (gates aspiracionales heredados, adaptados al monorepo): typecheck → lint → test → test:seguridad → `pnpm audit --prod --audit-level high` (bloquea) y un informe moderate de producción que no bloquea → build. En push y en PR: Trivy filesystem y Trivy sobre las imágenes Docker etiquetadas (server/web, dev y prod) cuando existan Dockerfiles. Actions externas fijadas por SHA. `permissions: contents: read`.
+- Gate mínimo enforceable hoy: `pnpm lint` + `pnpm test` + `pnpm build` (vía turbo).
+- No imprimir secretos en logs de CI.
+- No deshabilitar tests de seguridad existentes para hacer pasar el pipeline.
+- Artefactos de build no deben incluir `.env` ni tokens.
 
-- **Desarrollo Local:** `BIND_HOST=127.0.0.1` sin token obligatorio en loopback.
-- **Red Local (LAN) / Producción:** Token de instancia `TOKEN_LENS_API_TOKEN` obligatorio.
+## Separación de entornos
+
+- Desarrollo local: `BIND_HOST=127.0.0.1` sin token.
+- LAN / Docker expuesto: token de instancia obligatorio.
+- No reutilizar tokens de producción en ejemplos ni documentación versionada.
+
+## Relación con otras reglas
+
+| Tema | Regla principal | Esta regla aporta |
+|------|-----------------|-------------------|
+| pnpm, lockfile | `14-gestor-paquetes-pnpm.mdc` | Integridad, CI frozen, supply chain |
+| Token LAN, GEMINI_API_KEY | `04-seguridad-git.mdc` | Secretos en build y Compose |
+| Tests de CI | `11-testing-qa-escalabilidad.mdc` | No romper gates de seguridad |
+| Publicación | `15-publicacion-requiere-validacion.mdc` | No push/deploy sin usuario |
