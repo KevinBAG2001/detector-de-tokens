@@ -3,7 +3,16 @@ import { StreamTokensUseCase } from '../../../application/use-cases/StreamTokens
 import { AntigravityTranscriptWatcherAdapter } from '../../../infrastructure/watcher/AntigravityTranscriptWatcherAdapter.js';
 import { GeminiApiClientAdapter } from '../../../infrastructure/gemini/GeminiApiClientAdapter.js';
 import { InMemoryMetricLogAdapter } from '../../../infrastructure/logging/InMemoryMetricLogAdapter.js';
+import { ErrorValidacionRuta } from '../../../infrastructure/seguridad/ErrorValidacionRuta.js';
 import { enviarRespuestaExitosa, enviarRespuestaError } from '../respuestaApi.js';
+
+function esErrorValidacionSesion(err: Error): boolean {
+  const msg = err.message;
+  return (
+    msg.startsWith('Identificador de sesión') ||
+    msg.startsWith('El identificador de sesión')
+  );
+}
 
 export class TokenController {
   constructor(
@@ -21,8 +30,8 @@ export class TokenController {
         return;
       }
       enviarRespuestaExitosa(res, 'Métricas de sesión activa obtenidas exitosamente', paquete);
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al obtener sesión activa', 500, err?.message);
+    } catch {
+      enviarRespuestaError(res, 'Error al obtener sesión activa', 500);
     }
   };
 
@@ -35,8 +44,8 @@ export class TokenController {
         totalSesiones: sesiones.length,
         sesiones,
       });
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al listar sesiones de Antigravity', 500, err?.message);
+    } catch {
+      enviarRespuestaError(res, 'Error al listar sesiones de Antigravity', 500);
     }
   };
 
@@ -54,8 +63,16 @@ export class TokenController {
       );
 
       enviarRespuestaExitosa(res, `Sesión cambiada exitosamente a ${sessionId}`, nuevoPaquete);
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al cambiar la sesión observada', 400, err?.message);
+    } catch (err: unknown) {
+      if (err instanceof ErrorValidacionRuta) {
+        enviarRespuestaError(res, err.mensajeCliente, 403);
+        return;
+      }
+      if (err instanceof Error && esErrorValidacionSesion(err)) {
+        enviarRespuestaError(res, err.message, 400);
+        return;
+      }
+      enviarRespuestaError(res, 'Sesión no encontrada.', 404);
     }
   };
 
@@ -74,8 +91,8 @@ export class TokenController {
       }
 
       enviarRespuestaExitosa(res, `Modelo cambiado exitosamente a ${modelId}`, nuevoPaquete);
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al actualizar modelo', 500, err?.message);
+    } catch {
+      enviarRespuestaError(res, 'Error al actualizar modelo', 500);
     }
   };
 
@@ -84,8 +101,8 @@ export class TokenController {
       const modelId = (req.query.modelId as string) === 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'gemini-2.5-pro';
       const cuotas = this.quotaAdapter.getModelQuota(modelId);
       enviarRespuestaExitosa(res, 'Cuotas y límites oficiales de Gemini recuperados', cuotas);
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al obtener cuotas', 500, err?.message);
+    } catch {
+      enviarRespuestaError(res, 'Error al obtener cuotas', 500);
     }
   };
 
@@ -93,8 +110,8 @@ export class TokenController {
     try {
       const logs = this.metricRepo.getRecentLogs(100);
       enviarRespuestaExitosa(res, 'Historial reciente de telemetría', logs);
-    } catch (err: any) {
-      enviarRespuestaError(res, 'Error al recuperar historial', 500, err?.message);
+    } catch {
+      enviarRespuestaError(res, 'Error al recuperar historial', 500);
     }
   };
 }

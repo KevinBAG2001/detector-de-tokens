@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { ErrorValidacionRuta } from './ErrorValidacionRuta.js';
 
 /**
  * Obtiene la ruta raíz autorizada para inspección de logs de Antigravity.
@@ -14,6 +15,10 @@ export function getAntigravityLogsRoot(): string {
   return path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
 }
 
+function perteneceARaizLogs(normRoot: string, normTarget: string): boolean {
+  return normTarget === normRoot || normTarget.startsWith(`${normRoot}/`);
+}
+
 /**
  * Validador estricto de seguridad para rutas de logs.
  * Regla: Toda ruta debe pertenecer inequívocamente a ANTIGRAVITY_LOGS_ROOT.
@@ -22,28 +27,33 @@ export function getAntigravityLogsRoot(): string {
 export function validarRutaLogs(rutaSolicitada: string): string {
   const logsRoot = getAntigravityLogsRoot();
 
-  // Asegurar que la raíz exista
   if (!fs.existsSync(logsRoot)) {
-    throw new Error(`El directorio raíz de logs de Antigravity no existe: ${logsRoot}`);
+    throw new ErrorValidacionRuta(
+      'El directorio raíz de logs no está disponible.',
+      `El directorio raíz de logs de Antigravity no existe: ${logsRoot}`
+    );
   }
 
   const realLogsRoot = fs.realpathSync(logsRoot);
   const resolvedPath = path.resolve(logsRoot, rutaSolicitada);
 
-  // Verificar si el archivo o directorio existe
   if (!fs.existsSync(resolvedPath)) {
-    throw new Error(`La ruta solicitada no existe dentro del contenedor de logs: ${rutaSolicitada}`);
+    throw new ErrorValidacionRuta(
+      'La ruta solicitada no existe.',
+      `La ruta solicitada no existe dentro del contenedor de logs: ${rutaSolicitada} (resuelta: ${resolvedPath})`
+    );
   }
 
-  // Canonizar la ruta para resolver cualquier enlace simbólico
   const canonicalPath = fs.realpathSync(resolvedPath);
 
-  // Normalizar separadores para comparaciones seguras en Windows y Unix
   const normRoot = realLogsRoot.toLowerCase().replace(/\\/g, '/');
   const normTarget = canonicalPath.toLowerCase().replace(/\\/g, '/');
 
-  if (!normTarget.startsWith(normRoot)) {
-    throw new Error(`Acceso denegado: La ruta '${rutaSolicitada}' intenta escapar del directorio raíz autorizado.`);
+  if (!perteneceARaizLogs(normRoot, normTarget)) {
+    throw new ErrorValidacionRuta(
+      'Ruta no permitida.',
+      `Acceso denegado: canonical '${canonicalPath}' fuera de raíz '${realLogsRoot}' (solicitud: '${rutaSolicitada}')`
+    );
   }
 
   return canonicalPath;
@@ -58,12 +68,10 @@ export function validarSessionId(sessionId: string): string {
   }
 
   const trimmed = sessionId.trim();
-  // Rechazar separadores de directorios y secuencias de escape
   if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('..')) {
     throw new Error('El identificador de sesión contiene caracteres o secuencias de escape no permitidos.');
   }
 
-  // Validar formato UUID o hash alfanumérico seguro
   const regexSeguro = /^[a-zA-Z0-9_-]+$/;
   if (!regexSeguro.test(trimmed)) {
     throw new Error('El identificador de sesión contiene caracteres no válidos.');

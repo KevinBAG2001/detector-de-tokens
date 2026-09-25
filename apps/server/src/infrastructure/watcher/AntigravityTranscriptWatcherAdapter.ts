@@ -7,7 +7,6 @@ import { getAntigravityLogsRoot, validarRutaLogs, validarSessionId } from '../se
 
 export interface SessionInfo {
   sessionId: string;
-  transcriptPath: string;
   lastModified: Date;
   sizeBytes: number;
 }
@@ -49,7 +48,6 @@ export class AntigravityTranscriptWatcherAdapter {
           const stats = fs.statSync(transcriptPath);
           sessions.push({
             sessionId,
-            transcriptPath,
             lastModified: stats.mtime,
             sizeBytes: stats.size,
           });
