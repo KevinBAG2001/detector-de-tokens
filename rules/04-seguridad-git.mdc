@@ -1,5 +1,5 @@
 ---
-description: "Seguridad, token de instancia LAN, protección de rutas y Zero-Leakage en Antigravity Liquid Token Lens."
+description: "Seguridad, token de instancia LAN, Zero-Leakage y protección de rutas en Antigravity Liquid Token Lens."
 globs:
   - "apps/server/**/*.ts"
   - "apps/web/src/**/*.tsx"
@@ -9,44 +9,62 @@ alwaysApply: false
 
 # Seguridad — Antigravity Liquid Token Lens
 
-Antigravity Liquid Token Lens inspecciona transcripciones de agentes de IA en el sistema de archivos del host y se conecta con APIs de modelos. La seguridad y la privacidad son críticas.
+Antigravity Liquid Token Lens lee transcripciones de agentes y consulta cuotas sobre el sistema de archivos / APIs del host. La seguridad es crítica.
 
 ## Modelo de despliegue
 
 - **Por máquina (default):** `BIND_HOST=127.0.0.1`. El token LAN no es obligatorio, pero CORS y el middleware de Origin solo aceptan la SPA (`http://localhost:5174` / `http://127.0.0.1:5174`, o `CORS_ORIGINS`).
-- **LAN / Contenedor Expuesto:** `BIND_HOST` no loopback + `TOKEN_LENS_API_TOKEN`. El mismo token de instancia para autorizar los clientes conectados a esa máquina.
-- Las API Keys de Google Gemini o Vertex AI son exclusivamente para **consulta de cuotas de modelos**, no para login de usuario.
+- **LAN:** `BIND_HOST` no loopback + `TOKEN_LENS_API_TOKEN` (D15). El mismo token de instancia para todos los usuarios de esa máquina.
+- `GEMINI_API_KEY` es para **cuotas Gemini** (Fase 2), no para login de Antigravity Liquid Token Lens.
 
-## Política Crítica de Privacidad "Zero-Leakage"
+## CORS y mutaciones desde el navegador
 
-- El observador de logs (`transcript.jsonl`) tiene **prohibido estrictamente** transmitir, loguear o persistir el contenido de los prompts, el código de los archivos del usuario o las respuestas completas del modelo.
-- Únicamente se extraen **delas numéricos de tokens, identificadores de modelo y marcas de tiempo**.
-- Cualquier error o stack trace reportado al cliente debe sanitizar rutas del sistema y jamás volcar datos de contexto de las conversaciones.
+- No usar `cors()` abierto. Lista explícita de orígenes.
+- POST/PUT/PATCH/DELETE con `Origin` ajeno → **403**. Sin `Origin` (curl local) se permite.
+- WebSocket: el mismo allowlist si viene `Origin`.
+- Operaciones destructivas en API (vaciar historial de métricas, reset de sesión observada, mutación destructiva de estado local) exigen `confirmado: true` además de la confirmación en UI.
 
-## CORS y Mutaciones desde el Navegador
+## Datos sensibles
 
-- No usar `cors()` abierto. Lista explícita de orígenes permitidos.
-- Peticiones con `Origin` ajeno o no autorizado → **403**. Peticiones locales sin `Origin` (curl / CLI local) se permiten.
-- WebSocket: aplica el mismo allowlist de orígenes y validación de token.
-- Acciones de reseteo de historial o vaciado de métricas exigen `confirmado: true`.
+- `GEMINI_API_KEY` y secretos de cifrado — cifrar en disco, nunca en git.
+- Credenciales de cuota — agent/almacén del sistema o env protegido.
+- No loguear prompts, diffs ni contenido de transcripts en producción (**Zero-Leakage**).
+- No exponer rutas absolutas del host en errores al cliente cuando se pueda evitar.
 
-## Protección de Secretos y Rutas
+## Validación de rutas (obligatorio)
 
-- Las API Keys de Gemini deben almacenarse de forma segura (variables de entorno protegidas o almacenamiento seguro del SO), nunca en archivos versionados ni en el frontend.
-- Toda operación de lectura de logs pasa obligatoriamente por `validarRutaLogs()`.
-- Cualquier ruta fuera de `ANTIGRAVITY_LOGS_ROOT` (`~/.gemini/antigravity-ide/brain/`) → **403**.
-- Canonizar rutas siempre con `fs.realpath` para rechazar symlinks que intenten apuntar fuera de la raíz autorizada.
+Toda operación con `transcriptPath` / sesión pasa por `validarRutaLogs` (y `validarSessionId` donde aplique). Fuera de `ANTIGRAVITY_LOGS_ROOT` → **403**.
 
-## Token de Instancia LAN
+Aplicar en status de sesión, métricas, watch, switch_session, cuotas, WS de sesión y el resto de mutaciones.
+
+**Horizonte Identidad (Fase 4.0):** no basta el path léxico (`path.resolve`). Canonizar con `realpath` (o equivalente) y rechazar si el destino sale de la raíz. Un symlink bajo `ANTIGRAVITY_LOGS_ROOT` que apunta fuera es escape. Tests obligatorios.
+
+## Token de instancia
 
 Si `BIND_HOST` no es `127.0.0.1` / `localhost` / `::1`:
-- Fallar al arrancar si no está definido `TOKEN_LENS_API_TOKEN`.
-- Middleware Bearer en todas las rutas bajo `/api/*`.
-- WebSocket: exigir query parameter `?token=`.
-- La ruta `/health` permanece pública como sonda operativa.
 
-## WebSocket y Auditoría
+- Fallar al arrancar sin `TOKEN_LENS_API_TOKEN`.
+- Middleware: Bearer del token permanente, cookie/id de sesión de corta duración, o loopback.
+- WebSocket: primer mensaje `AUTH` o cookie de sesión. `?token=` **no** autentica.
+- `/health` permanece público.
+- Rate limit por IP/token (Identidad). Localhost no se penaliza.
 
-- El WebSocket transmite única y exclusivamente paquetes de telemetría numérica (`TokenTelemetryStreamPacket`).
-- Un watcher de log por conexión; desuscribir y cerrar watchers al desconectarse el cliente.
-- Auditoría: registrar métricas de rendimiento y eventos de cuota en `IMetricLogRepository` sin incluir contenido de código.
+Usuarios y roles de Antigravity Liquid Token Lens **no** entran en Identidad (D22).
+
+## Operaciones destructivas
+
+Requieren confirmación **contextual** en UI (impacto numerado, no “¿estás seguro?”): vaciar historial de métricas, reset de sesión observada, cualquier mutación destructiva de estado local.
+
+El API exige `confirmado: true` en vaciar historial de métricas, reset de sesión observada y mutaciones destructivas de estado local. Un cliente HTTP sin ese campo recibe **400**.
+
+En Identidad, esas acciones pasan antes por **preview no mutante**. Type-the-name solo en extremo (vaciar historial con datos acumulados, reset de sesión activa con stream abierto).
+
+## WebSocket
+
+- Validar `transcriptPath` / session en watch de sesión / `switch_session` con el mismo validador HTTP.
+- Un watcher por conexión; no enviar contenido de prompts ni archivos.
+- Progreso de `TokenOperacion`: metadatos (porcentaje, estado), no prompts ni diffs.
+
+## Auditoría
+
+Log de métricas en `IMetricLogRepository` (evento, duración, éxito/error). Identidad: persistir en archivo local append-only, **sin** prompts, diffs ni tokens (`TOKEN_LENS_****`).

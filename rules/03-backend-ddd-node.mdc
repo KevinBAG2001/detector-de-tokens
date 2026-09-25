@@ -1,5 +1,5 @@
 ---
-description: "Backend Node.js con DDD para monitoreo de tokens en Antigravity Liquid Token Lens."
+description: "Backend Node.js con DDD para telemetría de tokens en Antigravity Liquid Token Lens."
 globs:
   - "apps/server/**/*.ts"
   - "apps/server/package.json"
@@ -7,70 +7,63 @@ globs:
 alwaysApply: false
 ---
 
-# Backend Node.js con DDD — Token Lens
+# Backend Node.js con DDD
 
-Actúa como arquitecta backend senior en TypeScript, Express/Fastify, DDD, streaming de eventos en tiempo real y seguridad de sistemas de archivos.
+Actúa como arquitecta backend senior en TypeScript, Express, DDD, telemetría de tokens y seguridad de sistemas de archivos.
 
 ## Estructura obligatoria
 
 ```text
 apps/server/src/
 ├── domain/
-│   ├── entities/           # TokenSession, QuotaBudget
-│   ├── value-objects/      # GranularTokenCount, CurrencyCost, FillLevel
-│   └── repositories/       # ITokenTelemetryRepository, IQuotaRepository
+│   ├── entities/
+│   └── repositories/
 ├── application/
 │   └── use-cases/          # StreamTokensUseCase.ts, CalculateCostsUseCase.ts
 ├── infrastructure/
-│   ├── watcher/            # AntigravityTranscriptWatcherAdapter (único watcher)
-│   ├── gemini/             # GeminiApiClientAdapter
+│   ├── tokens/             # AntigravityTranscriptWatcherAdapter
 │   ├── logging/            # InMemoryMetricLogAdapter
-│   └── seguridad/          # validarRutaLogs, tokenInstancia
+│   ├── watcher/            # AntigravityTranscriptWatcherAdapter (único watcher, chokidar)
+│   ├── cuotas/             # GeminiApiClientAdapter
+│   └── seguridad/          # validarRutaLogs, validarSessionId, tokenInstancia
 └── interfaces/
-    ├── http/
-    │   ├── controllers/    # TokenController
-    │   ├── routes/         # TokenRoutes
-    │   └── respuestaApi.ts
-    └── ws/
-        └── TokenWebSocketServer.ts
+    └── http/
+        ├── controllers/    # TokenController
+        ├── routes/         # TokenRoutes
+        └── respuestaApi.ts
 ```
 
 ## Reglas de DDD
 
-- `ITokenTelemetryRepository` define el contrato de lectura; `AntigravityTranscriptWatcherAdapter` es la única implementación de lectura de logs locales de Antigravity.
-- `IQuotaRepository` define el contrato para cuotas globales; `GeminiApiClientAdapter` es el puerto de comunicación oficial con Google AI Studio.
-- `TokenUseCases` coordina la orquestación y el cálculo de límites de la ventana de contexto; **no importa Express ni Fastify**.
-- `TokenController` solo valida la entrada, delega en los casos de uso y formatea la respuesta con el envelope estándar.
-- **Prohibido** crear `services/token.service.ts` o `services/watcher.service.ts` paralelos al adapter DDD.
-- Registrar eventos de uso en `IMetricLogRepository` para auditoría y gráficas de tendencia en memoria.
+- `ITokenTelemetryRepository` define el contrato; `AntigravityTranscriptWatcherAdapter` es la única implementación de watch de transcripts (chokidar).
+- `StreamTokensUseCase` / `CalculateCostsUseCase` coordinan lógica de aplicación; no importan Express.
+- `TokenController` solo valida entrada, delega y formatea respuesta.
+- No lógica de negocio en rutas ni en `index.ts`.
+- **Prohibido** `services/tokens.service.ts` o `watcher.service.ts` paralelos al adapter DDD.
+- Registrar métricas/eventos en `IMetricLogRepository` para auditoría.
 
 ## Variables de entorno
 
 | Variable | Descripción |
-|---|---|
+|----------|-------------|
 | `PORT` | Puerto HTTP/WS (default 3001) |
 | `BIND_HOST` | Default `127.0.0.1` |
-| `ANTIGRAVITY_LOGS_ROOT` | Única raíz permitida para inspeccionar logs (`~/.gemini/antigravity-ide/brain/`) |
-| `GEMINI_API_KEY` | Clave opcional para consultar cuotas oficiales de Google AI Studio |
+| `ANTIGRAVITY_LOGS_ROOT` | Única raíz de logs/transcripciones permitidos |
 | `TOKEN_LENS_API_TOKEN` | Obligatorio si `BIND_HOST` no es loopback |
-| `NODE_ENV` | `development` / `production` |
+| `GEMINI_API_KEY` | Opcional; cuotas Gemini (no login del producto) |
+| `NODE_ENV` | development / production |
 
-## Seguridad de rutas de logs
+## Seguridad de rutas
 
-- Toda operación que reciba un identificador de sesión o ruta de log debe pasar por `validarRutaLogs()`.
-- La ruta resuelta debe encontrarse estrictamente bajo `ANTIGRAVITY_LOGS_ROOT`.
-- Canonizar con `fs.realpath` para rechazar symlinks que intenten escapar hacia directorios del sistema de archivos no autorizados.
-- Rechazar secuencias de escape `..` y rutas absolutas fuera del contexto de Antigravity.
+- Toda operación con `transcriptPath` / session debe pasar `validarRutaLogs()` (y `validarSessionId` donde aplique).
+- Incluye watch de sesión / `switch_session` en WebSocket.
+- `transcriptPath` resuelto debe estar bajo `ANTIGRAVITY_LOGS_ROOT`.
+- Rechazar `..` y rutas absolutas de archivo no autorizadas.
 
-## Respuesta API Unificada
+## Respuesta API
 
 ```json
-{
-  "exito": true,
-  "mensaje": "Métricas de sesión obtenidas correctamente",
-  "datos": {},
-  "meta": { "timestamp": "2026-09-18T00:45:00Z" }
-}
+{ "exito": true, "mensaje": "...", "datos": {}, "meta": {} }
 ```
 
-La ruta `/health` queda como sonda operativa `{ "status": "ok" }`. No reintroducir formatos inconsistentes como `{ success, data, error }`.
+`/health` queda como sonda operativa `{ status: "ok" }`. No reintroducir `{ success, data, error }`.

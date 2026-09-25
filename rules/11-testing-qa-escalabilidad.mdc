@@ -1,5 +1,5 @@
 ---
-description: "Testing, QA y escalabilidad para Antigravity Liquid Token Lens (Vitest, Express/Fastify, React)."
+description: "Testing, QA y escalabilidad para Antigravity Liquid Token Lens (Vitest, Express, React)."
 globs:
   - "apps/server/**/*.ts"
   - "apps/web/**/*.tsx"
@@ -9,45 +9,46 @@ globs:
 alwaysApply: false
 ---
 
-# Testing, QA y Escalabilidad — Token Lens
+# Testing, QA y Escalabilidad
 
-Proyecto oficial: **Antigravity Liquid Token Lens**.
+Proyecto oficial: **Antigravity Liquid Token Lens — visualizador de tokens y cuotas auto-hospedable**.
 
 Actúa como arquitecta senior de QA. Esta regla no reemplaza frontend, backend ni seguridad.
 
 ## Misión
 
-Cuando se pida pruebas, QA, auditoría o corrección de defectos:
+Cuando se pida pruebas, QA, auditoría o corrección:
+
 - Inspecciona el código antes de cambiarlo.
-- Repara defectos atacando la causa raíz.
-- Agrega o actualiza pruebas automatizadas que certifiquen el comportamiento corregido.
-- No reescribas el sistema sin justificación técnica.
-- No afirmes escalabilidad o baja latencia sin benchmarks empíricos.
+- Repara defectos con causa clara.
+- Agrega o actualiza pruebas del comportamiento corregido.
+- No reescribas el sistema sin justificación.
+- No afirmes escalabilidad sin evidencia.
 
 ## Stack de pruebas
 
-- **Vitest** en la raíz del monorepo (`pnpm test`).
-- Pruebas unitarias de dominio: invariantes de `GranularTokenCount`, máquina de estados de `FillLevel` y cálculo de `CurrencyCost`.
-- Pruebas de integración del parser de `transcript.jsonl` (resiliencia ante líneas corruptas y campos truncados).
-- Validación estricta del envelope API: `{ "exito": true, "mensaje": "...", "datos": {}, "meta": {} }`.
-- Validación de autorización LAN cuando `BIND_HOST` no es loopback.
-- Linting con Biome/ESLint (`pnpm lint`).
-- Compilación (`pnpm build`).
+- Vitest en la raíz del monorepo (`pnpm test`).
+- Unitarias del validador de rutas (`validarRutaLogs`) y de use cases de mutación.
+- Envelope `{ exito, mensaje, datos, meta }`.
+- Token de instancia cuando `BIND_HOST` no es loopback.
+- oxlint / lint del monorepo (`pnpm lint`; el proyecto puede usar eslint/turbo lint — el gate obligatorio sigue siendo `pnpm lint`).
+- Build (`pnpm build`).
+- No PHPUnit, no Laravel, no Sanctum, no PostgreSQL.
 
 ## Qué priorizar
 
-- **Seguridad de Rutas:** Path traversal o symlinks fuera de `ANTIGRAVITY_LOGS_ROOT` → **403**.
-- **Resiliencia de Streaming:** El watcher debe soportar ráfagas de 100 eventos/segundo sin bloqueos de memoria.
-- **Subagentes:** Agregación correcta de tokens cuando la sesión contiene llamadas a `invoke_subagent`.
-- **Filtros SVG / WebGL:** Ausencia de fugas de memoria (memory leaks) en hooks de animación.
+- Path traversal fuera de `ANTIGRAVITY_LOGS_ROOT` → 403.
+- Lectura/watch rechazados fuera de la raíz (cuando existan).
+- Confirmación de operaciones destructivas (`confirmado: true`).
+- Un flujo: observar sesión → recibir telemetría WS → desglose granular (e2e o integración en Fase 1).
 
-## CI/CD
+## CI
 
-`.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm test` → `pnpm build`. Las pruebas fallidas bloquean cualquier integración.
+`.github/workflows/ci.yml`: `pnpm lint` + `pnpm test` + `pnpm build`. Las pruebas fallidas bloquean merge.
 
 ## No negociable
 
-- No falsificar resultados de pruebas.
-- No eliminar pruebas para forzar que el pipeline pase en verde.
-- No realizar llamadas de pago a la API real de Gemini durante los tests automáticos (usar mocks y fixtures).
-- No operar fuera de directorios temporales controlados en la suite de pruebas.
+- No falsificar resultados.
+- No eliminar pruebas para que la suite pase.
+- No usar APIs Gemini remotas reales ni transcripts de producción en la suite.
+- No operar fuera de `ANTIGRAVITY_LOGS_ROOT` en tests.
