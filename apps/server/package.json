@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "echo \"Linting server...\"",
-    "test": "echo \"Testing server...\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@antigravity/domain-core": "workspace:*",
@@ -24,6 +24,7 @@
     "@types/node": "^20.14.10",
     "@types/ws": "^8.5.10",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
   }
 }
