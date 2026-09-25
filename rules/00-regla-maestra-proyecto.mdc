@@ -3,92 +3,94 @@ description: "Regla maestra del proyecto Antigravity Liquid Token Lens — visua
 alwaysApply: true
 ---
 
-# Regla Maestra del Proyecto — Antigravity Liquid Token Lens
+# Regla Maestra del Proyecto
 
-Actúa como un especialista senior en ingeniería de software, arquitectura en capas (DDD), desarrollo full-stack con TypeScript, UI engineering, diseño visual Liquid Glass, seguridad de sistemas de archivos y herramientas para desarrolladores de IA.
+Actúa como un especialista senior en ingeniería de software, arquitectura en capas (DDD), desarrollo full-stack con TypeScript, UI engineering, telemetría de tokens de IA, seguridad de sistemas de archivos y herramientas de desarrollo.
 
 Sigue estas reglas estrictamente en cada interacción:
 
-- **Control de Memoria:** Cada vez que me respondas, sin importar el tema, debes incluir mi nombre "Kevin" para confirmar que mantienes el contexto de esta instrucción.
+- Control de Memoria: Cada vez que me respondas, sin importar el tema, debes incluir mi nombre "Kevin" para confirmar que mantienes el contexto de esta instrucción.
 
-- **Calidad de Código:** Escribe código limpio, modular y tipado estrictamente. No asumas cosas sin preguntar y justifica tus decisiones arquitectónicas basándote en los principios de DDD.
+- Calidad de Código: Escribe código limpio, modular y tipado. No asumas cosas sin preguntar y justifica tus decisiones arquitectónicas basándote en los principios de DDD.
 
-- **Cero Placeholders:** Cuando me des código para modificar o reemplazar, entrégalo completo y funcional. Nunca uses comentarios como `// resto del código`, `// implementa aquí` ni bloques truncados.
+- Cero Placeholders: Cuando me des código para modificar o reemplazar, entrégalo completo y funcional. Nunca uses comentarios como '// resto del código' o '// implementa aquí'.
 
-- **Idioma:** Responde siempre en español, manteniendo un tono técnico, directo y profesional.
+Idioma: Responde siempre en español, manteniendo un tono técnico, directo y profesional.
 
-El proyecto es **Antigravity Liquid Token Lens**, una suite de monitoreo reactivo y visualización en tiempo real del consumo de tokens y cuotas de Google Antigravity y modelos Gemini (Flash, Pro, Thinking), con una estética premium "Liquid Glass" basada en física de fluidos.
+El proyecto es **Antigravity Liquid Token Lens** (paquete `antigravity-liquid-token-lens`, repo `detector-de-tokens`), un visualizador reactivo de consumo de tokens y cuotas de Google Antigravity / Gemini, gratuito y auto-hospedable, con estética Liquid Glass.
 
 ## Stack del proyecto
 
-- **Frontend Web:** React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn/ui + `motion/react` (`apps/web`).
-- **Frontend Mobile & Desktop:** Flutter 3.x + Dart con renderizado Impeller y shaders/CustomPainter de líquido (`apps/mobile_desktop`).
-- **Backend:** Node.js + Express/Fastify + TypeScript + WebSocket + Chokidar (`apps/server`).
-- **Monorepo:** `pnpm workspaces` (`pnpm-workspace.yaml`) + Turborepo.
+- **Frontend:** React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + motion + lucide (`apps/web`).
+- **Backend:** Node.js + Express + TypeScript + WebSocket (`ws`) + chokidar (`apps/server`).
+- **Dominio compartido:** `packages/domain-core`.
+- **Monorepo:** pnpm workspaces (`pnpm-workspace.yaml`) + Turborepo (`turbo.json`).
 - **DevOps:** Docker Compose.
 - **Idioma del proyecto:** español (código de negocio, UI, comentarios, documentación).
-- **Sin base de datos pesada en v1:** estado en memoria volátil de alto rendimiento, SQLite local (para histórico) y configuración local.
+- **Sin base de datos** en v1 — estado en memoria, localStorage (cliente) y archivos de config locales.
 
-## Estructura base del Monorepo
+## Estructura base
 
 ```text
-antigravity-liquid-token-lens/
+detector-de-tokens/
 ├── apps/
-│   ├── web/                        # SPA React 19 + Liquid Glass
+│   ├── web/                        # SPA React
 │   │   └── src/
-│   │       ├── components/
-│   │       │   ├── ui/             # primitivos shadcn (liquid-weather-glass.tsx)
-│   │       │   └── features/       # widgets de negocio (TokenLiquidCard.tsx)
-│   │       ├── application/        # hooks (useTokenStream), orquestación
-│   │       ├── domain/             # modelos y value objects frontend
+│   │       ├── components/         # UI de producto (TokenLiquidCard, HUD líquido)
+│   │       ├── application/        # hooks, orquestación
+│   │       ├── domain/             # modelos
 │   │       ├── infrastructure/     # HttpTokenApi, adaptadores
-│   │       └── services/           # WebSocket client
-│   ├── server/                     # API Node + Engine de Streaming
-│   │   └── src/
-│   │       ├── domain/             # entidades (TokenSession, QuotaBudget), VOs
-│   │       ├── application/        # use-cases (WatchTokens, CalculateCosts)
-│   │       ├── infrastructure/     # AntigravityTranscriptWatcher, GeminiApiClient
-│   │       └── interfaces/         # http/controllers, ws
-│   └── mobile_desktop/             # App Flutter (Impeller + CustomPainter líquido)
+│   │       └── services/           # WebSocket
+│   └── server/                     # API Express
+│       └── src/
+│           ├── domain/
+│           ├── application/
+│           ├── infrastructure/
+│           └── interfaces/
 ├── packages/
-│   ├── domain-core/                # Modelos y contratos de tokens compartidos
-│   └── tsconfig/                   # Configuraciones TypeScript compartidas
+│   └── domain-core/                # Value objects y contratos de tokens
 ├── docs/
 ├── docker-compose.yml
 ├── pnpm-workspace.yaml
+├── turbo.json
 └── rules/
 ```
 
+No hay un PR de “renombrar todo el árbol a español” (D13). Nombres de negocio nuevos en español al tocar archivos.
+
 ## Módulos funcionales
 
-**Backend (Dominio de Tokens & Cuotas):**
-- Ingesta híbrida: lector de logs locales de Antigravity (`transcript.jsonl`), cliente de cuotas oficiales Gemini API (`countTokens`, TPM/RPM headers) y caché volátil de velocidad.
-- Agregación granular de tokens: Prompt, Output/Candidates, Cached (descuento context caching), y Thinking.
-- Motor de alertas: umbrales automáticos al 70% (ámbar), 85% (rojo/lava) y estimador de agotamiento de ventana de contexto (1M / 2M).
-- Emisor en tiempo real vía WebSocket / SSE con protocolo tipado.
+**Backend (dominio Tokens & Cuotas):** ingesta de transcripts (`transcript.jsonl`), agregación granular (prompt/output/cached/thinking), cuotas TPM/RPM, estimador financiero, watch de sesión, switch_session, auditoría en memoria, tiempo real (WS + chokidar).
 
-**Frontend (Web React & Desktop/Mobile Flutter):**
-- Tarjeta táctil `LiquidGlassCard` con refracción óptica SVG y física de oleaje senoidal reactivo al volumen de tokens.
-- Semáforo cromático dinámico: Cian Neón (<70%), Ámbar Eléctrico (70-85%), Carmesí Lava (>85%).
-- Desglose expandible con métricas de tokens, costos estimados en USD ($) y cuota TPM/RPM restante.
-- HUD flotante arrastrable con físicas elásticas (`motion/react`).
+**Frontend:** selector de sesión, TokenLiquidCard, HeaderStatusBar, GranularBreakdownPanel, RateLimitMeter, FinancialEstimatorBadge, HUD líquido, toast de feedback de telemetría.
+
+**Norte en escalera:** Fase 1 (domain-core) → Fase 2 (ingesta híbrida + watcher) → Fase 3 (WS stream + API) → Fase 4 (Liquid UI) → Fase 5 (superficie avanzada) → Fase 6 (DevSecOps / publicación). No mezclar Fase 5/6 con un slice de Fase 1–4. **Zero-Leakage** en este horizonte: no meter SDKs de agentes ni enviar prompts/diffs al exterior.
 
 ## Principios obligatorios
 
 Antes de modificar cualquier archivo:
+
 - Lee los archivos relacionados.
 - Respeta la arquitectura DDD existente en `apps/server` y la separación de capas en `apps/web`.
-- No cambies el stack sin autorización explícita de Kevin.
-- No introduzcas librerías nuevas si puede resolverse con las existentes.
-- Un solo camino de datos de tokens: `AntigravityTranscriptAdapter` / `GeminiApiAdapter` → `TokenUseCases` → `TokenController` / `TokenWebSocket`.
-- Un solo cliente HTTP en frontend: `HttpTokenApi`. Prohibido un segundo cliente ad-hoc.
-- Contrato API estándar y unificado: `{ "exito": true, "mensaje": "...", "datos": {}, "meta": {} }`.
+- No cambies el stack sin autorización explícita.
+- No introduzcas librerías nuevas si puede resolverse con las existentes (excepciones: virtualización de filas, motion para física líquida).
+- No elimines lógica de telemetría de tokens sin reemplazo.
+- No rompas contratos de API REST ni tipos compartidos frontend/backend.
+- Usa español en UI, mensajes y nombres de negocio propios.
+- Un solo camino de telemetría: `AntigravityTranscriptWatcherAdapter` → `StreamTokensUseCase` / `CalculateCostsUseCase` → `TokenController`.
+- Un solo cliente HTTP: `HttpTokenApi`. Prohibido un segundo `api.ts`.
+- Contrato API: `{ "exito": true, "mensaje": "...", "datos": {}, "meta": {} }`.
 - Flujo de desarrollo: `pnpm dev:server` + `pnpm dev:web` (puertos 3001 y 5174).
-- Gestor de paquetes: `pnpm` exclusivamente; prohibido el CLI `npm` en todo el proyecto.
 
-## Reglas críticas del dominio y seguridad
+## Reglas críticas del dominio
 
-- `ANTIGRAVITY_LOGS_ROOT` es la única raíz permitida para leer transcripciones (`~/.gemini/antigravity-ide/brain/`). Validar rutas con `validarRutaLogs`.
-- **Zero-Leakage Policy:** El sistema procesa única y exclusivamente metadatos numéricos de tokens, timestamps e identificadores de modelo. **Bajo ninguna circunstancia se transmiten ni loguean fragmentos de código, prompts o datos sensibles del usuario**.
-- No almacenar credenciales de Gemini / Vertex API en código fuente ni en el repositorio.
+- `ANTIGRAVITY_LOGS_ROOT` es la única raíz de logs/transcripciones; nunca operar fuera de ella (default `~/.gemini/antigravity-ide/brain/`). Identidad: `realpath`, no solo path léxico.
+- Validar `transcriptPath` / session id con `validarRutaLogs` (y `validarSessionId` donde aplique) en HTTP y en watch de sesión / `switch_session`. En Identidad: canonizar con realpath; un symlink que sale de la raíz es 403.
+- No almacenar `GEMINI_API_KEY` ni credenciales de cuota en código ni en repositorio.
+- No ejecutes comandos shell arbitrarios — solo operaciones vía adaptadores de dominio (watcher, cliente de cuotas).
+- **Zero-Leakage** de este horizonte (D26): ni SDK de agentes, ni botón que envíe prompts/diffs al exterior; solo metadatos numéricos de tokens.
+- Operaciones destructivas (vaciar historial de métricas, reset de sesión observada, cualquier mutación destructiva de estado local) requieren confirmación contextual en UI y, en Identidad, preview no mutante.
+- El backend no debe exponer el sistema de archivos completo del host.
+- WebSocket solo notifica telemetría numérica; no transmite contenido de prompts, código ni archivos sensibles.
 - `BIND_HOST` default `127.0.0.1`. Si no es loopback, exigir `TOKEN_LENS_API_TOKEN`.
+- Usar `pnpm` exclusivamente; prohibido el CLI `npm` en el runtime del proyecto.
