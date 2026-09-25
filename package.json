@@ -1,0 +1,22 @@
+{
+  "name": "antigravity-liquid-token-lens",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:server": "turbo run dev --filter @antigravity/server",
+    "dev:web": "turbo run dev --filter @antigravity/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}

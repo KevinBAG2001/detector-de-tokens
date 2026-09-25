@@ -1,0 +1,19 @@
+{
+  "name": "@antigravity/domain-core",
+  "version": "1.0.0",
+  "description": "Núcleo de Dominio DDD para Antigravity Liquid Token Lens",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,40 @@
+---
+description: "Criterios de accesibilidad, diseño responsivo y rendimiento frontend para Antigravity Liquid Token Lens."
+globs:
+  - "apps/web/**/*.tsx"
+  - "apps/web/**/*.ts"
+  - "apps/web/**/*.css"
+  - "apps/web/vite.config.*"
+alwaysApply: false
+---
+
+# Accesibilidad, Diseño Responsivo y Rendimiento — Token Lens
+
+Toda mejora frontend de **Antigravity Liquid Token Lens** debe garantizar accesibilidad, soporte para ventanas flotantes (HUD/PiP), rendimiento a 60–120 FPS y fidelidad óptica.
+
+El frontend vive en `apps/web/`.
+
+## Accesibilidad
+
+- HTML semántico estricto (`header`, `main`, `nav`, `aside`, `button`, `label`).
+- Navegación por teclado completa en tarjetas expandibles, modales y controles de cuota.
+- Foco visible con anillo de contraste (`focus-visible:ring-2 focus-visible:ring-cyan-400`).
+- Contraste de texto validado sobre fondos oscuros (`#090d16`).
+- **No comunicar el estado de saturación únicamente con color:** Acompañar siempre el color del líquido con el porcentaje numérico exacto (ej. `88% - Saturación Crítica`) y etiquetas ARIA descriptivas.
+- Icon-buttons con `title` y `aria-label` descriptivos (ej. `aria-label="Expandir desglose de tokens"`).
+
+## Responsive y Form Factor
+
+- **Desktop-First:** Optimizado principalmente para monitores de desarrollo (anchos $\ge 1280$ px).
+- **Modo Widget / HUD Flotante:** La tarjeta `TokenLiquidCard` debe ser compacta y arrastrable, soportando anchos mínimos de 380 px para operar como ventana complementaria flotante junto al IDE.
+
+## Rendimiento de Animaciones y Streaming
+
+- **60–120 FPS Sostenidos:** Optimizar los filtros SVG de turbulencia (`feTurbulence`) y la animación senoidal para evitar sobrecarga en la GPU.
+- **Debouncing en WebSocket:** Implementar coalescing de eventos de tokens entrantes (debounce de 35–50 ms) para no provocar re-renders destructivos cuando el agente emite tokens a alta velocidad.
+- **Aislamiento de Estado:** Evitar que los deltas de tokens fuercen el re-render de todo el árbol de `App.tsx`; encapsular el estado reactivo en hooks dedicados (`useTokenStream`).
+
+## Seguridad Visual
+
+- No mostrar rutas completas del sistema de archivos del host en la UI (mostrar únicamente el identificador de sesión o nombre de modelo).
+- Enmascarar siempre cualquier API Key configurada (`AIzaSy****`).

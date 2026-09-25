@@ -1,0 +1,53 @@
+---
+description: "DevSecOps, cadena de suministro, contenedores y CI para Antigravity Liquid Token Lens."
+globs:
+  - "package.json"
+  - "pnpm-lock.yaml"
+  - "pnpm-workspace.yaml"
+  - "apps/**/package.json"
+  - "apps/**/Dockerfile"
+  - "docker-compose.yml"
+  - ".github/workflows/**/*.yml"
+  - ".env.example"
+  - ".dockerignore"
+  - ".npmrc"
+alwaysApply: false
+---
+
+# DevSecOps y Cadena de Suministro — Token Lens
+
+Complementa `14-gestor-paquetes-pnpm.mdc` (gestión de paquetes) y `04-seguridad-git.mdc` (secretos y despliegue).
+
+## Dependencias y Cadena de Suministro
+
+- **Gestor Exclusivo:** `pnpm` con `pnpm-lock.yaml` versionado.
+- El pipeline de CI debe ejecutar `pnpm install --frozen-lockfile`.
+- Prohibido terminantemente introducir o versionar `package-lock.json`, `yarn.lock` o `bun.lock*`.
+- No agregar dependencias de terceros sin justificación técnica y análisis de huella.
+- Revisar scripts `postinstall` o `prepare` en nuevas librerías antes de instalarlas.
+
+## Secretos y Configuración
+
+- Variables sensibles (`GEMINI_API_KEY`, `TOKEN_LENS_API_TOKEN`) únicamente en variables de entorno locales o gestores de secretos del host.
+- `.env.example` documenta las variables requeridas sin valores reales de producción.
+- No incluir jamás archivos `.env` en los commits ni en las imágenes Docker.
+
+## Contenedores
+
+Archivos: `apps/server/Dockerfile`, `apps/web/Dockerfile`, `docker-compose.yml`.
+- Imágenes base ligeras (Node Alpine) con tags específicos.
+- Usar `pnpm` en los entornos de compilación de Docker.
+- No copiar archivos `.env` ni claves privadas al contexto de build.
+- Si `BIND_HOST` se define en `0.0.0.0` dentro del contenedor, exigir obligatoriamente `TOKEN_LENS_API_TOKEN`.
+
+## CI/CD
+
+Archivo: `.github/workflows/ci.yml`.
+- Pipeline estándar: `pnpm lint` → `pnpm test` → `pnpm build`.
+- No imprimir variables de entorno ni secretos en los logs de los pipelines.
+- No deshabilitar suites de pruebas de seguridad para acelerar o forzar el pase del CI.
+
+## Separación de Entornos
+
+- **Desarrollo Local:** `BIND_HOST=127.0.0.1` sin token obligatorio en loopback.
+- **Red Local (LAN) / Producción:** Token de instancia `TOKEN_LENS_API_TOKEN` obligatorio.

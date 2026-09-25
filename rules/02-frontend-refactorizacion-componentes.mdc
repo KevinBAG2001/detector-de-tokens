@@ -1,0 +1,50 @@
+---
+description: "Refactorización de componentes frontend de Antigravity Liquid Token Lens sin romper comportamiento."
+globs:
+  - "apps/web/**/*.tsx"
+  - "apps/web/**/*.ts"
+alwaysApply: false
+---
+
+# Refactorización de Componentes Frontend — Token Lens
+
+Cuando mejores o refactorices componentes frontend de **Antigravity Liquid Token Lens**, conserva siempre el comportamiento existente.
+
+## Reglas obligatorias
+
+- Conserva la lógica funcional y la física de fluidos existente.
+- Mantén estricta compatibilidad con las interfaces de props actuales (`TokenMetricsProps`, `LiquidGlassCardProps`).
+- No cambies contratos de componentes sin justificarlo técnicamente.
+- No rompas llamadas a `HttpTokenApi` ni la sincronización en tiempo real del hook `useTokenStream`.
+- Extrae componentes solo si mejora la claridad, la separación de responsabilidades o la mantenibilidad.
+- Evita sobreingeniería y duplicación de wrappers de estilos.
+- Mejora nombres de clases, estructura semántica y jerarquía HTML.
+- Usa elementos semánticos cuando aplique: `header`, `main`, `section`, `nav`, `aside`, `footer`, `button`, `form`, `label`.
+- No mezcles paradigmas de estilos (Tailwind puro vs estilos inline desordenados).
+
+## Superficie de producto
+
+Aplica especialmente en:
+- `LiquidGlassCard` y filtros de turbulencia SVG (`feTurbulence`, `feDisplacementMap`).
+- `TokenLiquidCard` y el medidor de nivel líquido reactivo.
+- Panel de desglose granular (Prompt, Output, Cache, Thinking).
+- Indicadores de cuota (TPM / RPM) y reseteo temporal.
+- Panel de estimación de costos en USD.
+- Diálogos y modales de configuración (claves de API, filtros de sesión).
+- Toasts de feedback de estado y alertas de umbral de saturación.
+
+## Botones y acciones
+
+Intención clara en los textos de acción: "Conectar Sesión", "Actualizar Cuotas", "Expandir Métricas", "Colapsar Tarjeta", "Reiniciar Medidor", "Guardar Umbral". No uses textos vagos como "OK" o "Click aquí".
+
+Si la acción resetea estadísticas o borra el histórico local, debe ser visualmente evidente con color de advertencia y solicitar confirmación.
+
+## Estados obligatorios
+
+Toda tarjeta o widget debe manejar explícitamente: `loading`, `error`, `empty`, `active`, `critical` (saturación > 85%) y `disconnected`.
+
+Textos en español: "Conectando al agente...", "Error de lectura", "Sin sesión activa", "Capacidad óptima", "Saturación inminente".
+
+## Accesibilidad
+
+Navegación por teclado, foco visible, contraste suficiente en modo oscuro, atributos ARIA y no depender exclusivamente del color para comunicar el agotamiento de tokens (incluir texto y porcentaje explícito).

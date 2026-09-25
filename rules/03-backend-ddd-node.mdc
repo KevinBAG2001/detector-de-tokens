@@ -1,0 +1,76 @@
+---
+description: "Backend Node.js con DDD para monitoreo de tokens en Antigravity Liquid Token Lens."
+globs:
+  - "apps/server/**/*.ts"
+  - "apps/server/package.json"
+  - "apps/server/tsconfig.json"
+alwaysApply: false
+---
+
+# Backend Node.js con DDD — Token Lens
+
+Actúa como arquitecta backend senior en TypeScript, Express/Fastify, DDD, streaming de eventos en tiempo real y seguridad de sistemas de archivos.
+
+## Estructura obligatoria
+
+```text
+apps/server/src/
+├── domain/
+│   ├── entities/           # TokenSession, QuotaBudget
+│   ├── value-objects/      # GranularTokenCount, CurrencyCost, FillLevel
+│   └── repositories/       # ITokenTelemetryRepository, IQuotaRepository
+├── application/
+│   └── use-cases/          # StreamTokensUseCase.ts, CalculateCostsUseCase.ts
+├── infrastructure/
+│   ├── watcher/            # AntigravityTranscriptWatcherAdapter (único watcher)
+│   ├── gemini/             # GeminiApiClientAdapter
+│   ├── logging/            # InMemoryMetricLogAdapter
+│   └── seguridad/          # validarRutaLogs, tokenInstancia
+└── interfaces/
+    ├── http/
+    │   ├── controllers/    # TokenController
+    │   ├── routes/         # TokenRoutes
+    │   └── respuestaApi.ts
+    └── ws/
+        └── TokenWebSocketServer.ts
+```
+
+## Reglas de DDD
+
+- `ITokenTelemetryRepository` define el contrato de lectura; `AntigravityTranscriptWatcherAdapter` es la única implementación de lectura de logs locales de Antigravity.
+- `IQuotaRepository` define el contrato para cuotas globales; `GeminiApiClientAdapter` es el puerto de comunicación oficial con Google AI Studio.
+- `TokenUseCases` coordina la orquestación y el cálculo de límites de la ventana de contexto; **no importa Express ni Fastify**.
+- `TokenController` solo valida la entrada, delega en los casos de uso y formatea la respuesta con el envelope estándar.
+- **Prohibido** crear `services/token.service.ts` o `services/watcher.service.ts` paralelos al adapter DDD.
+- Registrar eventos de uso en `IMetricLogRepository` para auditoría y gráficas de tendencia en memoria.
+
+## Variables de entorno
+
+| Variable | Descripción |
+|---|---|
+| `PORT` | Puerto HTTP/WS (default 3001) |
+| `BIND_HOST` | Default `127.0.0.1` |
+| `ANTIGRAVITY_LOGS_ROOT` | Única raíz permitida para inspeccionar logs (`~/.gemini/antigravity-ide/brain/`) |
+| `GEMINI_API_KEY` | Clave opcional para consultar cuotas oficiales de Google AI Studio |
+| `TOKEN_LENS_API_TOKEN` | Obligatorio si `BIND_HOST` no es loopback |
+| `NODE_ENV` | `development` / `production` |
+
+## Seguridad de rutas de logs
+
+- Toda operación que reciba un identificador de sesión o ruta de log debe pasar por `validarRutaLogs()`.
+- La ruta resuelta debe encontrarse estrictamente bajo `ANTIGRAVITY_LOGS_ROOT`.
+- Canonizar con `fs.realpath` para rechazar symlinks que intenten escapar hacia directorios del sistema de archivos no autorizados.
+- Rechazar secuencias de escape `..` y rutas absolutas fuera del contexto de Antigravity.
+
+## Respuesta API Unificada
+
+```json
+{
+  "exito": true,
+  "mensaje": "Métricas de sesión obtenidas correctamente",
+  "datos": {},
+  "meta": { "timestamp": "2026-09-18T00:45:00Z" }
+}
+```
+
+La ruta `/health` queda como sonda operativa `{ "status": "ok" }`. No reintroducir formatos inconsistentes como `{ success, data, error }`.

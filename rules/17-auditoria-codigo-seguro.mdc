@@ -1,0 +1,76 @@
+---
+description: "Auditoría de código seguro para TypeScript/React/Fastify en Antigravity Liquid Token Lens."
+globs:
+  - "apps/server/**/*.ts"
+  - "apps/web/**/*.ts"
+  - "apps/web/**/*.tsx"
+alwaysApply: false
+---
+
+# Auditoría de Código Seguro — Token Lens
+
+Actúa como revisor de seguridad defensiva en el monorepo TypeScript de **Antigravity Liquid Token Lens**.
+
+Esta regla **complementa** — no reemplaza — `03-backend-ddd-node.mdc`, `04-seguridad-git.mdc` y `11-testing-qa-escalabilidad.mdc`.
+
+## Superficies del repositorio
+
+- **Backend:** Fastify/Express, WebSocket, observador de `transcript.jsonl`, cliente de Google Gen AI, validación de rutas de logs.
+- **Frontend:** React 19, `HttpTokenApi`, cliente WebSocket, componentes Liquid Glass.
+- **Persistencia:** En memoria volátil de alta velocidad y SQLite local; sin bases de datos externas en v1.
+
+## Controles obligatorios al revisar o modificar código
+
+### Entradas y validación
+
+- Toda entrada HTTP o evento WS (`sessionId`, `logPath`, `modelName`) debe validarse con esquemas estrictos (Zod o TypeScript) antes de llegar a la capa de aplicación.
+- Reutilizar `validarRutaLogs()`; no crear validadores ad-hoc inconsistentes.
+- Rechazar secuencias de path traversal (`..`), symlinks que apunten fuera de `ANTIGRAVITY_LOGS_ROOT` y rutas absolutas no autorizadas.
+
+### Flujo de datos y comandos
+
+- Un solo camino para el flujo de tokens: `AntigravityTranscriptWatcherAdapter` / `GeminiApiClientAdapter` → `TokenUseCases` → `TokenController` / `TokenWebSocket`.
+- Prohibido terminantemente el uso de `child_process.exec` arbitrario o ejecución de comandos de shell directos con parámetros del usuario.
+
+### Autenticación y autorización
+
+- `TOKEN_LENS_API_TOKEN` obligatorio cuando `BIND_HOST` no sea loopback.
+- Middleware de autorización Bearer en endpoints HTTP y query `?token=` en WebSocket para accesos de red LAN.
+- Validación de orígenes en CORS para evitar peticiones maliciosas entre sitios.
+
+### Salidas, privacidad (Zero-Leakage) y logging
+
+- **Política Zero-Leakage:** No volcar jamás prompts del usuario, código fuente analizado ni respuestas del modelo en los streams de datos o respuestas HTTP.
+- No exponer stack traces crudos ni rutas internas completas del sistema operativo en errores de API.
+- Auditoría: registrar únicamente metadatos numéricos de tokens, tiempos de respuesta y códigos de estado.
+
+### Frontend
+
+- Prohibido `dangerouslySetInnerHTML` sin sanitización estricta previa.
+- No almacenar API Keys en `localStorage` o cookies inseguras.
+- Renderizado seguro de métricas numéricas sin inyección de código.
+
+### Tipado
+
+- Prohibido el uso de `any` en código de producción; utilizar tipos estrictos, `unknown` con type guards o genéricos acotados.
+
+## Protocolo de reporte de hallazgos
+
+Cuando se realice una auditoría de seguridad, cada hallazgo debe estructurarse obligatoriamente en el siguiente formato:
+
+| Campo | Obligatorio |
+|---|---|
+| Identificador interno | Sí (ej. `SEC-001`) |
+| Clasificación | Vulnerabilidad confirmada / Riesgo potencial |
+| CWE / OWASP | Solo si aplica con evidencia; no inventar |
+| Severidad cualitativa | Crítica / Alta / Media / Baja / Informativa |
+| CVSS | Solo con vector completo; si no, `Pendiente de validación` |
+| Confianza | Alta / Media / Baja |
+| Archivo y línea | Obligatorio cuando sea identificable |
+| Evidencia mínima | Fragmento redactado o prueba reproducible |
+| Precondiciones | Contexto de abuso |
+| Impacto | Qué se compromete (confidencialidad, integridad, etc.) |
+| Remediación | Código concreto y acotado para solucionar el fallo |
+| Validación | Test automatizado o paso de verificación |
+
+No reportar hallazgos sin evidencia verificable en el repositorio.

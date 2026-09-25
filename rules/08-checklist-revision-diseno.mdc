@@ -1,0 +1,46 @@
+---
+description: "Checklist de evaluación para auditar o rediseñar interfaces de Antigravity Liquid Token Lens."
+globs:
+  - "apps/web/**/*.tsx"
+  - "apps/web/**/*.ts"
+  - "apps/web/**/*.css"
+alwaysApply: false
+---
+
+# Checklist de Revisión de Diseño — Token Lens
+
+Cuando se pida revisar o rediseñar una interfaz de **Antigravity Liquid Token Lens**, evalúa en cinco dimensiones: claridad, consistencia, usabilidad, accesibilidad y calidad visual.
+
+## 1. Claridad
+
+- ¿Se entiende en cinco segundos el porcentaje de llenado de la ventana de contexto?
+- ¿El conteo de tokens (Prompt vs Output vs Cache) y el costo en USD son legibles de inmediato?
+- ¿Se percibe claramente el estado de alerta o peligro de saturación?
+
+Aplica a: tarjeta `TokenLiquidCard`, panel granular, barra de velocidad TPM/RPM y modales.
+
+## 2. Consistencia
+
+- Tokens de color del tema oscuro (`#090d16`) y gradientes del fluido (Cian, Ámbar, Carmesí).
+- Misma densidad técnica en tarjetas flotantes y paneles expandidos.
+- Iconografía de `lucide-react`, sin mezclar paquetes.
+
+## 3. Usabilidad
+
+- Confirmación previa si se ejecuta una acción de vaciado de historial local.
+- Manejo impecable de estados: `loading`, `empty`, `active`, `critical` y `disconnected`.
+- Interacción fluida al arrastrar (`drag`) o expandir la tarjeta de vidrio.
+
+## 4. Accesibilidad
+
+- Navegación por teclado completa y foco visible.
+- Ratio de contraste tipográfico verificado sobre el vidrio líquido.
+- El estado no depende únicamente del color del fluido: porcentaje y texto explícitos.
+
+## 5. Calidad Visual "Liquid Glass"
+
+- El efecto de vidrio translúcido con refracción óptica se ve premium y orgánico.
+- Cero ruido decorativo innecesario que distraiga del conteo de tokens.
+- Movimiento del fluido a 60 FPS sin caídas de cuadros ni parpadeos.
+
+Entrega objetiva: qué falla, qué cambiar y qué riesgo de regresión existe.

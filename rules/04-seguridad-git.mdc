@@ -1,0 +1,52 @@
+---
+description: "Seguridad, token de instancia LAN, protección de rutas y Zero-Leakage en Antigravity Liquid Token Lens."
+globs:
+  - "apps/server/**/*.ts"
+  - "apps/web/src/**/*.tsx"
+  - "apps/web/src/**/*.ts"
+alwaysApply: false
+---
+
+# Seguridad — Antigravity Liquid Token Lens
+
+Antigravity Liquid Token Lens inspecciona transcripciones de agentes de IA en el sistema de archivos del host y se conecta con APIs de modelos. La seguridad y la privacidad son críticas.
+
+## Modelo de despliegue
+
+- **Por máquina (default):** `BIND_HOST=127.0.0.1`. El token LAN no es obligatorio, pero CORS y el middleware de Origin solo aceptan la SPA (`http://localhost:5174` / `http://127.0.0.1:5174`, o `CORS_ORIGINS`).
+- **LAN / Contenedor Expuesto:** `BIND_HOST` no loopback + `TOKEN_LENS_API_TOKEN`. El mismo token de instancia para autorizar los clientes conectados a esa máquina.
+- Las API Keys de Google Gemini o Vertex AI son exclusivamente para **consulta de cuotas de modelos**, no para login de usuario.
+
+## Política Crítica de Privacidad "Zero-Leakage"
+
+- El observador de logs (`transcript.jsonl`) tiene **prohibido estrictamente** transmitir, loguear o persistir el contenido de los prompts, el código de los archivos del usuario o las respuestas completas del modelo.
+- Únicamente se extraen **delas numéricos de tokens, identificadores de modelo y marcas de tiempo**.
+- Cualquier error o stack trace reportado al cliente debe sanitizar rutas del sistema y jamás volcar datos de contexto de las conversaciones.
+
+## CORS y Mutaciones desde el Navegador
+
+- No usar `cors()` abierto. Lista explícita de orígenes permitidos.
+- Peticiones con `Origin` ajeno o no autorizado → **403**. Peticiones locales sin `Origin` (curl / CLI local) se permiten.
+- WebSocket: aplica el mismo allowlist de orígenes y validación de token.
+- Acciones de reseteo de historial o vaciado de métricas exigen `confirmado: true`.
+
+## Protección de Secretos y Rutas
+
+- Las API Keys de Gemini deben almacenarse de forma segura (variables de entorno protegidas o almacenamiento seguro del SO), nunca en archivos versionados ni en el frontend.
+- Toda operación de lectura de logs pasa obligatoriamente por `validarRutaLogs()`.
+- Cualquier ruta fuera de `ANTIGRAVITY_LOGS_ROOT` (`~/.gemini/antigravity-ide/brain/`) → **403**.
+- Canonizar rutas siempre con `fs.realpath` para rechazar symlinks que intenten apuntar fuera de la raíz autorizada.
+
+## Token de Instancia LAN
+
+Si `BIND_HOST` no es `127.0.0.1` / `localhost` / `::1`:
+- Fallar al arrancar si no está definido `TOKEN_LENS_API_TOKEN`.
+- Middleware Bearer en todas las rutas bajo `/api/*`.
+- WebSocket: exigir query parameter `?token=`.
+- La ruta `/health` permanece pública como sonda operativa.
+
+## WebSocket y Auditoría
+
+- El WebSocket transmite única y exclusivamente paquetes de telemetría numérica (`TokenTelemetryStreamPacket`).
+- Un watcher de log por conexión; desuscribir y cerrar watchers al desconectarse el cliente.
+- Auditoría: registrar métricas de rendimiento y eventos de cuota en `IMetricLogRepository` sin incluir contenido de código.

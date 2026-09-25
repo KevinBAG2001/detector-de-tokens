@@ -1,0 +1,47 @@
+---
+description: "Integración de last30days como skill de investigación externa del agente (aislada del runtime de Antigravity Liquid Token Lens)."
+alwaysApply: true
+---
+
+# Integración last30days Skill (Herramienta Externa Local)
+
+Esta regla regula el uso de **last30days** por el agente de IA en **Antigravity Liquid Token Lens**. last30days es una skill de investigación externa, local y **no forma parte del runtime** (React, Flutter, Fastify/Node, Docker).
+
+Repositorio oficial de referencia (solo lectura, fuera de este proyecto):
+- https://github.com/mvanhorn/last30days-skill
+
+## Qué es
+
+**last30days** investiga un tema en los últimos 30 días en fuentes públicas (Reddit, HN, GitHub, documentación de IA, etc.) y sintetiza un brief citado. No es un módulo del proyecto.
+
+## Para qué sirve aquí
+
+Permitido:
+- Tendencias y actualizaciones de React 19, Vite, Flutter 3.x, motor Impeller y shaders GLSL.
+- Cambios recientes en la API de Google Gemini (tarifarios, context caching, límites TPM/RPM).
+- Comparativas de rendimiento en WebSockets, parsers de JSONL y librerías de fluidos/física.
+- Prácticas de seguridad para aplicaciones locales con acceso a logs del sistema.
+
+Prohibido:
+- Investigar API keys, `.env` ni rutas locales de sesiones del usuario.
+- Incluir last30days dentro de `apps/`, Docker, CI o lockfiles del proyecto.
+- Usar la skill como sustituto de pruebas automatizadas o de la validación de rutas.
+
+## Dónde vive (fuera del repo)
+
+| Recurso | Ruta |
+|---|---|
+| Skill instalada | `~/.agents/skills/last30days/` |
+| Config | `~/.config/last30days/.env` |
+| Salida | `~/Documents/Last30Days/` |
+
+`LAST30DAYS_TRUST_PROJECT_CONFIG` desactivado. Instalar solo globalmente con `-g`.
+
+## Cómo ejecutar
+
+1. Leer `~/.agents/skills/last30days/SKILL.md`.
+2. Preflight: `python "%USERPROFILE%\.agents\skills\last30days\scripts\last30days.py" --preflight`
+3. Seguir el contrato del skill al pie de la letra.
+4. No improvisar el formato de salida.
+
+La instalación global de skills puede usar herramientas externas fuera del runtime; dentro de este proyecto el gestor exclusivo es **`pnpm`**.

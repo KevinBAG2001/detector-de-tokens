@@ -1,0 +1,56 @@
+---
+description: "Reglas de diseño visual, UI y UX para Antigravity Liquid Token Lens (React 19 + Liquid Glass)."
+globs:
+  - "apps/web/**/*.tsx"
+  - "apps/web/**/*.ts"
+  - "apps/web/**/*.css"
+alwaysApply: false
+---
+
+# Frontend, UI y UX — Antigravity Liquid Token Lens
+
+Actúa como especialista senior en React 19, TypeScript, UI engineering, diseño de interfaces táctiles de fluidos (Liquid Glass) y herramientas de desarrollo para IA.
+
+El frontend principal vive en `apps/web/src/`.
+
+## Antes de modificar frontend
+
+- Lee componentes relacionados en `apps/web/src/components/ui/` y `apps/web/src/components/features/`.
+- Revisa `apps/web/package.json` para validar dependencias instaladas con `pnpm`.
+- Detecta tokens de diseño y variables HSL en `apps/web/src/index.css`.
+- Identifica hooks en `apps/web/src/application/hooks/` (ej. `useTokenStream`).
+- No dupliques componentes existentes.
+- Un solo cliente HTTP: `HttpTokenApi`. API base: `VITE_API_URL` (default `http://localhost:3001`).
+
+## Criterios visuales: "Liquid Glass"
+
+- **Estética de Vidrio Líquido:** Superficies de cristal translúcido con refracción óptica real mediante filtros SVG (`feTurbulence` y `feDisplacementMap`), desenfoque multicapa (`backdrop-blur-xl`) y bordes biselados con sombras interiores luminosas.
+- **Física del Fluido:** El nivel de tokens se comporta como un líquido con oleaje senoidal animado que sube dentro de la tarjeta conforme se acumulan tokens de conversación.
+- **Semáforo Cromático de Alerta:**
+  - **Fase Segura (< 70%):** Fluido cian neón (`#00F0FF` / `#3B82F6`) con oleaje suave y resplandor cristalino.
+  - **Fase Advertencia (70% - 85%):** Fluido ámbar eléctrico (`#F59E0B`) con oleaje acelerado y reflejos cáusticos.
+  - **Fase Crítica (> 85%):** Fluido carmesí lava (`#EF4444`) con pulsación de alerta en los bordes del cristal.
+- **Tema Oscuro Técnico:** Fondo `#090d16`, paneles de vidrio `rgba(17, 24, 39, 0.45)`, bordes `rgba(255, 255, 255, 0.12)`.
+- **Físicas de Arrastre:** Soporte de arrastre (`draggable`) y rebote elástico mediante `motion/react` para posicionar la tarjeta como HUD flotante en pantalla.
+
+## Pantallas y Componentes Prioritarios
+
+- **Header / Barra de Estado:** Conexión WebSocket en vivo, indicador de sesión activa de Antigravity y selector de modelo (Gemini 2.5 Pro / Flash).
+- **Tarjeta Héroe (`TokenLiquidCard`):** Medidor de llenado de la ventana de contexto (hasta 1M o 2M tokens) con estado colapsado y expandido.
+- **Panel Granular:** Desglose exacto de Prompt Tokens, Output Tokens, Cached Tokens y Thinking Tokens.
+- **Medidor de Velocidad de Cuota:** TPM y RPM restantes con contador regresivo para el reseteo de la ventana.
+- **Estimador de Costo Financiero:** Conversión automática en tiempo real a dólares ($ USD) según la tarifa oficial de tokens.
+- **Toasts y Alertas de HUD:** Notificaciones de advertencia al cruzar los umbrales de saturación.
+
+## Reglas de diseño
+
+- Cero plantillas genéricas de administrador institucional o tablas planas sin vida.
+- Priorizar la legibilidad de los números de tokens sobre la decoración estática.
+- Estados obligatorios en toda vista: `loading`, `error`, `empty`, `active`, `critical`.
+- Iconografía: `lucide-react`, sobria y consistente.
+- No introducir librerías UI pesadas sin justificación.
+- Mensajes de usuario en español, técnicos y sin prefijos de debug.
+
+## Convención de nombres
+
+Español en archivos y componentes de negocio propios (`PanelMetricasTokens.tsx`, `MedidorCuota.tsx`). Se permiten términos técnicos estándar de IA en inglés cuando aportan claridad: `TokenLiquidCard`, `PromptTokens`.

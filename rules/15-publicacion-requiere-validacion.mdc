@@ -1,0 +1,33 @@
+---
+description: Prohibido publicar, push, PR o MR sin validación explícita de Kevin
+alwaysApply: true
+---
+
+# Publicación: nada se manda solo
+
+Kevin valida **todo** lo que salga de esta máquina hacia GitHub/GitLab u otro remoto.
+
+## Prohibido sin frase explícita de Kevin en ese turno
+
+No ejecutar ni "aprovechar" para:
+- `git push` / `git push -u` / `git push --force`
+- Crear, abrir o fusionar **PR** (GitHub) o **MR** (GitLab)
+- Publicar el repositorio, cambiar visibilidad, crear releases, tags remotos o paquetes
+- Invitar colaboradores o modificar configuraciones del repositorio remoto
+- Comandos CLI como `gh pr create`, `glab mr create` o equivalentes
+
+Preparar el diff, el mensaje de commit o el texto descriptivo **en el chat** está permitido. Enviarlo o subirlo sin confirmación está estrictamente prohibido.
+
+## Obligatorio
+
+1. Mostrar con claridad qué se publicaría (ramas, commits, archivos modificados).
+2. Esperar la validación explícita de Kevin: por ejemplo "haz el push", "abre el PR", "crea el commit".
+3. Si no está esa instrucción explícita en el mensaje actual, **detenerse**. Una indicación de turnos anteriores no es válida para el presente.
+
+## Commits locales
+
+Un `git commit` local también requiere que Kevin lo ordene explícitamente. No es una publicación remota, pero tampoco se realiza de forma autónoma.
+
+## Excepción
+
+Ninguna. Ni ante fallos de red, ni para sincronizar ramas, ni para pipelines de CI. Primero validación directa.
