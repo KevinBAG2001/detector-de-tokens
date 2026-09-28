@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@antigravity/domain-core": "workspace:*",
-    "chokidar": "^3.6.0",
+    "@antigravity/local-ingest": "workspace:*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
