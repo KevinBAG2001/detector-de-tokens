@@ -73,7 +73,6 @@ describe('validarRutaLogs — frontera de path', () => {
     try {
       fs.symlinkSync(evilPath, linkPath);
     } catch {
-      // Entornos sin permiso para symlinks (p. ej. Windows sin privilegios)
       return;
     }
 

@@ -13,7 +13,11 @@
 
 Al orquestar flujos de trabajo con agentes autónomos en **Google Antigravity** y la familia de modelos **Gemini** (Gemini 2.5 Pro y Flash), la visibilidad del consumo de contexto suele ser opaca.
 
-**Antigravity Liquid Token Lens** resuelve este problema mediante una arquitectura local-first reactiva:
+**Antigravity Liquid Token Lens** resuelve este problema mediante una arquitectura local-first reactiva.
+
+> **Dirección de producto:** la UX principal evoluciona hacia el **hotbar nativo** (`apps/hotbar`, Tauri 2 + bandeja del sistema en Windows/Linux). La SPA web (`apps/web`) y el motor Node (`apps/server`) siguen en el monorepo como vista secundaria y API local; no se eliminan en esta línea de trabajo.
+
+Capacidades destacadas:
 - 🧪 **Metáfora Visual de Fluido Líquido:** Un contenedor de cristal translúcido que simula la subida de un líquido con oleaje senoidal dinámico y filtros de refracción óptica SVG (`feTurbulence` / `feDisplacementMap`).
 - 🚦 **Semáforo Cromático de Saturación:**
   - 🔵 **Fase Segura (< 70%):** Fluido Cian Neón (`#00F0FF`) con oleaje suave y resplandor cristalino.
@@ -40,16 +44,17 @@ antigravity-liquid-token-lens/
 │   │       ├── infrastructure/     # Observador de transcripciones locales y cliente Gemini
 │   │       └── interfaces/         # Endpoints REST y servidor WebSocket
 │   │
-│   └── web/                        # Frontend SPA React 19 + Vite 6 + Tailwind 4
-│       └── src/
-│           ├── components/
-│           │   ├── ui/             # Primitivos shadcn (LiquidGlassCard)
-│           │   └── features/       # Tarjetas de negocio (TokenLiquidCard, GranularBreakdown)
-│           ├── application/        # Hooks reactivos (useTokenStream)
-│           └── infrastructure/     # Cliente HTTP único (HttpTokenApi)
+│   ├── web/                        # Frontend SPA React 19 + Vite 6 + Tailwind 4 (secundario)
+│   │   └── src/
+│   │       ├── components/
+│   │       ├── application/        # Hooks reactivos (useTokenStream)
+│   │       └── infrastructure/     # Cliente HTTP único (HttpTokenApi)
+│   │
+│   └── hotbar/                     # Shell nativo Tauri 2 (bandeja + overlay) — UX principal
 │
 ├── packages/
-│   └── domain-core/                # Núcleo puro de Dominio DDD (Sin dependencias a frameworks)
+│   ├── domain-core/                # Núcleo puro de Dominio DDD (Sin dependencias a frameworks)
+│   └── local-ingest/               # Ingesta local Antigravity (JSONL, validación de rutas, CLI snapshot)
 │       └── src/
 │           ├── value-objects/      # GranularTokenCount, FillLevel, CurrencyCost, RateLimitWindow
 │           ├── aggregates/         # TokenSessionAggregate (Root Aggregate)
