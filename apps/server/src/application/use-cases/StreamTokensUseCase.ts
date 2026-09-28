@@ -5,7 +5,7 @@ import {
   GEMINI_2_5_FLASH_PRICING, 
   ModelPricing 
 } from '@antigravity/domain-core';
-import { AntigravityTranscriptWatcherAdapter } from '../../infrastructure/watcher/AntigravityTranscriptWatcherAdapter.js';
+import { AntigravityTranscriptWatcherAdapter } from '@antigravity/local-ingest';
 import { GeminiApiClientAdapter } from '../../infrastructure/gemini/GeminiApiClientAdapter.js';
 import { InMemoryMetricLogAdapter } from '../../infrastructure/logging/InMemoryMetricLogAdapter.js';
 

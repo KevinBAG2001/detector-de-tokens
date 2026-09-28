@@ -57,7 +57,6 @@ export class AntigravityTranscriptWatcherAdapter {
       }
     }
 
-    // Ordenar de la más reciente a la más antigua
     return sessions.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
   }
 
@@ -67,6 +66,32 @@ export class AntigravityTranscriptWatcherAdapter {
   public getLatestSession(): SessionInfo | null {
     const sessions = this.listAvailableSessions();
     return sessions.length > 0 ? sessions[0] : null;
+  }
+
+  /**
+   * Lee el transcript completo de una sesión y devuelve totales acumulados (sin observación reactiva).
+   */
+  public async readSessionTotals(sessionId: string): Promise<GranularTokenCount> {
+    const validSession = validarSessionId(sessionId);
+    const logsRoot = getAntigravityLogsRoot();
+    const candidatePath = path.join(logsRoot, validSession, '.system_generated', 'logs', 'transcript.jsonl');
+    const safeTranscriptPath = validarRutaLogs(candidatePath);
+    return readTranscriptFileTotals(safeTranscriptPath);
+  }
+
+  /**
+   * Snapshot de la sesión más reciente (o vacío si no hay logs).
+   */
+  public async readLatestSessionSnapshot(): Promise<{
+    sessionId: string | null;
+    tokens: GranularTokenCount;
+  }> {
+    const latest = this.getLatestSession();
+    if (!latest) {
+      return { sessionId: null, tokens: GranularTokenCount.empty() };
+    }
+    const tokens = await this.readSessionTotals(latest.sessionId);
+    return { sessionId: latest.sessionId, tokens };
   }
 
   /**
@@ -86,10 +111,8 @@ export class AntigravityTranscriptWatcherAdapter {
     this.lastProcessedLine = 0;
     this.accumulatedTokens = GranularTokenCount.empty();
 
-    // Procesar contenido inicial completo del archivo
     await this.processIncrementalChanges();
 
-    // Iniciar watcher con chokidar sobre el archivo transcript.jsonl
     this.currentWatcher = chokidar.watch(safeTranscriptPath, {
       persistent: true,
       usePolling: false,
@@ -110,9 +133,6 @@ export class AntigravityTranscriptWatcherAdapter {
     return this.accumulatedTokens;
   }
 
-  /**
-   * Lee incrementalmente las líneas nuevas añadidas al archivo transcript.jsonl.
-   */
   private async processIncrementalChanges(): Promise<void> {
     if (!this.currentWatchedPath || !fs.existsSync(this.currentWatchedPath)) {
       return;
@@ -136,7 +156,7 @@ export class AntigravityTranscriptWatcherAdapter {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
 
-      const tokensFromLine = this.parseLineTokens(trimmedLine);
+      const tokensFromLine = parseLineTokens(trimmedLine);
       if (tokensFromLine.totalAccumulated > 0) {
         batchDelta = batchDelta.add(tokensFromLine);
       }
@@ -152,64 +172,6 @@ export class AntigravityTranscriptWatcherAdapter {
     }
   }
 
-  /**
-   * Parser seguro de tokens a partir de una línea JSONL de Antigravity.
-   * Política Zero-Leakage: Desecha contenido textual y extrae exclusivamente telemetría cuantitativa.
-   */
-  private parseLineTokens(line: string): GranularTokenCount {
-    try {
-      const data = JSON.parse(line);
-
-      // 1. Caso explícito de metadatos de uso
-      if (data.usageMetadata && typeof data.usageMetadata === 'object') {
-        const prompt = Number(data.usageMetadata.promptTokenCount) || 0;
-        const candidates = Number(data.usageMetadata.candidatesTokenCount) || 0;
-        const cached = Number(data.usageMetadata.cachedContentTokenCount) || 0;
-        const thinking = Number(data.usageMetadata.thinkingTokenCount) || 0;
-        return new GranularTokenCount(prompt, candidates, cached, thinking);
-      }
-
-      // 2. Estimación analítica si no contiene metadatos directos
-      let promptTokens = 0;
-      let outputTokens = 0;
-      let cachedTokens = 0;
-      let thinkingTokens = 0;
-
-      const source = data.source;
-      const type = data.type;
-
-      // Estimación estándar basada en longitud de caracteres (ratio ~4 chars/token en Gemini)
-      const estimateFromText = (text: unknown): number => {
-        if (!text || typeof text !== 'string') return 0;
-        return Math.max(1, Math.ceil(text.length / 4));
-      };
-
-      if (source === 'USER_EXPLICIT' || source === 'SYSTEM') {
-        promptTokens += estimateFromText(data.content);
-      } else if (source === 'MODEL') {
-        if (type === 'PLANNER_RESPONSE') {
-          if (data.thinking) {
-            thinkingTokens += estimateFromText(data.thinking);
-          }
-          if (data.content) {
-            outputTokens += estimateFromText(data.content);
-          }
-          if (Array.isArray(data.tool_calls) && data.tool_calls.length > 0) {
-            outputTokens += estimateFromText(JSON.stringify(data.tool_calls));
-          }
-        }
-      }
-
-      return new GranularTokenCount(promptTokens, outputTokens, cachedTokens, thinkingTokens);
-    } catch {
-      // Línea incompleta o formato no JSON
-      return GranularTokenCount.empty();
-    }
-  }
-
-  /**
-   * Detiene el observador activo y limpia recursos.
-   */
   public stopWatching(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -230,5 +192,81 @@ export class AntigravityTranscriptWatcherAdapter {
 
   public get currentAccumulated(): GranularTokenCount {
     return this.accumulatedTokens;
+  }
+}
+
+export async function readTranscriptFileTotals(transcriptPath: string): Promise<GranularTokenCount> {
+  if (!fs.existsSync(transcriptPath)) {
+    return GranularTokenCount.empty();
+  }
+
+  const fileStream = fs.createReadStream(transcriptPath, { encoding: 'utf-8' });
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  let accumulated = GranularTokenCount.empty();
+
+  for await (const line of rl) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+    const tokensFromLine = parseLineTokens(trimmedLine);
+    if (tokensFromLine.totalAccumulated > 0) {
+      accumulated = accumulated.add(tokensFromLine);
+    }
+  }
+
+  return accumulated;
+}
+
+/**
+ * Parser seguro de tokens a partir de una línea JSONL de Antigravity.
+ * Política Zero-Leakage: Desecha contenido textual y extrae exclusivamente telemetría cuantitativa.
+ */
+export function parseLineTokens(line: string): GranularTokenCount {
+  try {
+    const data = JSON.parse(line);
+
+    if (data.usageMetadata && typeof data.usageMetadata === 'object') {
+      const prompt = Number(data.usageMetadata.promptTokenCount) || 0;
+      const candidates = Number(data.usageMetadata.candidatesTokenCount) || 0;
+      const cached = Number(data.usageMetadata.cachedContentTokenCount) || 0;
+      const thinking = Number(data.usageMetadata.thinkingTokenCount) || 0;
+      return new GranularTokenCount(prompt, candidates, cached, thinking);
+    }
+
+    let promptTokens = 0;
+    let outputTokens = 0;
+    let cachedTokens = 0;
+    let thinkingTokens = 0;
+
+    const source = data.source;
+    const type = data.type;
+
+    const estimateFromText = (text: unknown): number => {
+      if (!text || typeof text !== 'string') return 0;
+      return Math.max(1, Math.ceil(text.length / 4));
+    };
+
+    if (source === 'USER_EXPLICIT' || source === 'SYSTEM') {
+      promptTokens += estimateFromText(data.content);
+    } else if (source === 'MODEL') {
+      if (type === 'PLANNER_RESPONSE') {
+        if (data.thinking) {
+          thinkingTokens += estimateFromText(data.thinking);
+        }
+        if (data.content) {
+          outputTokens += estimateFromText(data.content);
+        }
+        if (Array.isArray(data.tool_calls) && data.tool_calls.length > 0) {
+          outputTokens += estimateFromText(JSON.stringify(data.tool_calls));
+        }
+      }
+    }
+
+    return new GranularTokenCount(promptTokens, outputTokens, cachedTokens, thinkingTokens);
+  } catch {
+    return GranularTokenCount.empty();
   }
 }
