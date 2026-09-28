@@ -10,6 +10,7 @@
     "dev": "turbo run dev",
     "dev:server": "turbo run dev --filter @antigravity/server",
     "dev:web": "turbo run dev --filter @antigravity/web",
+    "dev:hotbar": "pnpm --filter @antigravity/hotbar dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test"

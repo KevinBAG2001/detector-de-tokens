@@ -2,7 +2,7 @@ import http from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { AntigravityTranscriptWatcherAdapter } from './infrastructure/watcher/AntigravityTranscriptWatcherAdapter.js';
+import { AntigravityTranscriptWatcherAdapter } from '@antigravity/local-ingest';
 import { GeminiApiClientAdapter } from './infrastructure/gemini/GeminiApiClientAdapter.js';
 import { InMemoryMetricLogAdapter } from './infrastructure/logging/InMemoryMetricLogAdapter.js';
 import { StreamTokensUseCase } from './application/use-cases/StreamTokensUseCase.js';
