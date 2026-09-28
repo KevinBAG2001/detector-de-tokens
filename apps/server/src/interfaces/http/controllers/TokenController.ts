@@ -1,9 +1,8 @@
 import type { Request, Response } from 'express';
 import { StreamTokensUseCase } from '../../../application/use-cases/StreamTokensUseCase.js';
-import { AntigravityTranscriptWatcherAdapter } from '../../../infrastructure/watcher/AntigravityTranscriptWatcherAdapter.js';
+import { AntigravityTranscriptWatcherAdapter, ErrorValidacionRuta } from '@antigravity/local-ingest';
 import { GeminiApiClientAdapter } from '../../../infrastructure/gemini/GeminiApiClientAdapter.js';
 import { InMemoryMetricLogAdapter } from '../../../infrastructure/logging/InMemoryMetricLogAdapter.js';
-import { ErrorValidacionRuta } from '../../../infrastructure/seguridad/ErrorValidacionRuta.js';
 import { enviarRespuestaExitosa, enviarRespuestaError } from '../respuestaApi.js';
 
 function esErrorValidacionSesion(err: Error): boolean {
