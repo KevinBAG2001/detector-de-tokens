@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, RunEvent,
+    AppHandle, Emitter, Manager, RunEvent,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,45 +28,196 @@ pub struct AntigravitySnapshot {
     pub message: Option<String>,
 }
 
-fn workspace_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
+const SNAPSHOT_SCRIPT: &str = "dist/cli/snapshot.js";
+
+/// Rust `canonicalize()` en Windows devuelve rutas `\\?\` que Node 22+ rompe (EISDIR en `C:\`).
+fn normalize_path_for_subprocess(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    #[cfg(windows)]
+    {
+        const VERBATIM: &str = r"\\?\";
+        if let Some(rest) = text.strip_prefix(VERBATIM) {
+            const UNC: &str = "UNC\\";
+            if let Some(unc) = rest.strip_prefix(UNC) {
+                return PathBuf::from(format!(r"\\{unc}"));
+            }
+            return PathBuf::from(rest);
+        }
+    }
+    path
 }
 
-fn snapshot_cli_path() -> PathBuf {
-    workspace_root().join("packages/local-ingest/dist/cli/snapshot.js")
+fn workspace_root() -> PathBuf {
+    let manifest_relative = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let resolved = manifest_relative
+        .canonicalize()
+        .unwrap_or(manifest_relative);
+    normalize_path_for_subprocess(resolved)
+}
+
+fn local_ingest_package_dir() -> PathBuf {
+    normalize_path_for_subprocess(workspace_root().join("packages/local-ingest"))
+}
+
+#[cfg(windows)]
+fn is_bare_windows_drive(segment: &str) -> bool {
+    let trimmed = segment.trim();
+    let bytes = trimmed.as_bytes();
+    if bytes.len() == 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+        return true;
+    }
+    let no_trailing = trimmed.trim_end_matches('\\').trim_end_matches('/');
+    let bytes = no_trailing.as_bytes();
+    bytes.len() == 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic()
+}
+
+#[cfg(windows)]
+fn sanitize_windows_path_list(raw: &str) -> String {
+    raw.split(';')
+        .filter_map(|segment| {
+            let trimmed = segment.trim();
+            if trimmed.is_empty() || is_bare_windows_drive(trimmed) {
+                return None;
+            }
+            Some(trimmed.trim_start_matches(r"\\?\"))
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn sanitize_env_value(key: &str, value: String) -> String {
+    #[cfg(windows)]
+    {
+        if key.eq_ignore_ascii_case("PATH") {
+            return sanitize_windows_path_list(&value);
+        }
+        if value.contains(r"\\?\") {
+            return value.replace(r"\\?\", "");
+        }
+    }
+    value
+}
+
+fn apply_snapshot_child_env(command: &mut Command) {
+    for (key, value) in std::env::vars() {
+        if matches!(key.as_str(), "NODE_PATH" | "NODE_OPTIONS") {
+            continue;
+        }
+        command.env(&key, sanitize_env_value(&key, value));
+    }
+}
+
+fn resolve_node_program() -> String {
+    #[cfg(windows)]
+    {
+        for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+            if let Ok(base) = std::env::var(key) {
+                let candidate = PathBuf::from(base).join("nodejs").join("node.exe");
+                if candidate.is_file() {
+                    return candidate.to_string_lossy().into_owned();
+                }
+            }
+        }
+    }
+    "node".to_string()
+}
+
+fn spawn_snapshot_cli_node(node: &str, package_dir: &Path) -> std::io::Result<std::process::Output> {
+    let mut command = Command::new(node);
+    // Ruta relativa + cwd normalizado: evita prefijo `\\?\` en argv (bug Node 22+/26 en Windows).
+    command
+        .arg(SNAPSHOT_SCRIPT)
+        .current_dir(package_dir);
+    apply_snapshot_child_env(&mut command);
+    command.output()
+}
+
+fn spawn_snapshot_cli_pnpm(package_dir: &Path) -> std::io::Result<std::process::Output> {
+    let pnpm = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
+    let mut command = Command::new(pnpm);
+    command
+        .args(["run", "snapshot", "--silent"])
+        .current_dir(package_dir);
+    apply_snapshot_child_env(&mut command);
+    command.output()
+}
+
+fn node_snapshot_needs_pnpm_fallback(stdout: &[u8], stderr: &[u8]) -> bool {
+    if !stdout.is_empty() {
+        return false;
+    }
+    let err = String::from_utf8_lossy(stderr);
+    err.contains("EISDIR")
+        || err.contains("Module._findPath")
+        || err.contains("realpathSync")
+}
+
+fn run_snapshot_cli(package_dir: &Path) -> Result<std::process::Output, String> {
+    let node = resolve_node_program();
+    let output = spawn_snapshot_cli_node(&node, package_dir)
+        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens ({node}): {e}"))?;
+
+    if node_snapshot_needs_pnpm_fallback(&output.stdout, &output.stderr) {
+        eprintln!("[hotbar] Reintentando ingesta vía pnpm run snapshot (resolución de módulos Node en Windows)");
+        return spawn_snapshot_cli_pnpm(package_dir).map_err(|e| {
+            format!(
+                "Falló Node y pnpm run snapshot: {e} — stderr Node: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            )
+        });
+    }
+
+    Ok(output)
+}
+
+fn parse_snapshot_stdout(stdout: &[u8], stderr: &[u8]) -> Result<AntigravitySnapshot, String> {
+    let stdout_text = String::from_utf8_lossy(stdout);
+    let text = stdout_text.trim();
+    if text.is_empty() {
+        let stderr_text = String::from_utf8_lossy(stderr).trim().to_string();
+        if stderr_text.contains("EISDIR") {
+            return Err(format!(
+                "No se pudo ejecutar el CLI de ingesta (rutas Windows/Node). Detalle: {stderr_text}"
+            ));
+        }
+        return Err(format!("Salida vacía del CLI de ingesta: {stderr_text}"));
+    }
+
+    serde_json::from_str(text).map_err(|e| {
+        format!(
+            "JSON inválido del CLI: {e} — stderr: {}",
+            String::from_utf8_lossy(stderr).trim()
+        )
+    })
 }
 
 /// Invoca el CLI de `@antigravity/local-ingest` (Node) para leer logs locales sin servidor HTTP.
 #[tauri::command]
 fn fetch_antigravity_snapshot() -> Result<AntigravitySnapshot, String> {
-    let cli = snapshot_cli_path();
-    if !cli.exists() {
+    let package_dir = local_ingest_package_dir();
+    let script = package_dir.join(SNAPSHOT_SCRIPT);
+    if !script.is_file() {
         return Err(format!(
             "CLI de ingesta no compilado. Ejecute: pnpm --filter @antigravity/local-ingest build (ruta esperada: {})",
-            cli.display()
+            script.display()
         ));
     }
 
-    let output = Command::new("node")
-        .arg(&cli)
-        .current_dir(workspace_root())
-        .output()
-        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens: {e}"))?;
+    let output = run_snapshot_cli(&package_dir)?;
 
-    if output.stdout.is_empty() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Salida vacía del CLI de ingesta: {stderr}"));
+    // El CLI sale con código 2 cuando `available: false`, pero sigue emitiendo JSON en stdout.
+    parse_snapshot_stdout(&output.stdout, &output.stderr)
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(err) = window.show() {
+            eprintln!("[hotbar] No se pudo mostrar la ventana principal: {err}");
+        }
+        if let Err(err) = window.set_focus() {
+            eprintln!("[hotbar] No se pudo enfocar la ventana principal: {err}");
+        }
     }
-
-    serde_json::from_slice(&output.stdout).map_err(|e| {
-        format!(
-            "JSON inválido del CLI: {e} — stderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
 }
 
 #[tauri::command]
@@ -92,16 +243,20 @@ pub fn run() {
             let quit_item = PredefinedMenuItem::quit(app, Some("Salir"))?;
             let tray_menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
-            let icon = app
-                .default_window_icon()
-                .cloned()
-                .expect("icono de ventana por defecto");
+            let icon = match app.default_window_icon() {
+                Some(icon) => icon.clone(),
+                None => {
+                    eprintln!("[hotbar] AVISO: sin icono embebido; omitiendo bandeja del sistema");
+                    show_main_window(app.handle());
+                    return Ok(());
+                }
+            };
 
-            let app_handle = app.handle().clone();
-            TrayIconBuilder::new()
+            if let Err(err) = TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&tray_menu)
-                .tooltip("Antigravity Hotbar")
+                .show_menu_on_left_click(false)
+                .tooltip("Antigravity Hotbar — clic: mostrar/ocultar · clic derecho: menú")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
                         let _ = toggle_hotbar_window(app.clone());
@@ -124,12 +279,12 @@ pub fn run() {
                         let _ = toggle_hotbar_window(app.clone());
                     }
                 })
-                .build(app)?;
-
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.show();
+                .build(app)
+            {
+                eprintln!("[hotbar] AVISO: no se pudo crear el icono de bandeja: {err}");
             }
 
+            show_main_window(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

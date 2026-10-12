@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
 const host = process.env.TAURI_DEV_HOST;
+const devPort = Number(process.env.HOTBAR_DEV_PORT) || 1420;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
@@ -12,16 +13,17 @@ export default defineConfig(() => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  // 2. Puerto preferido 1420; si está ocupado, Vite prueba el siguiente (strictPort: false).
+  //    `pnpm dev` (scripts/tauri-dev.mjs) reserva un puerto libre y alinea devUrl vía --config.
   server: {
-    port: 1420,
-    strictPort: true,
+    port: devPort,
+    strictPort: false,
     host: host || false,
     hmr: host
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: devPort + 1,
         }
       : undefined,
     watch: {

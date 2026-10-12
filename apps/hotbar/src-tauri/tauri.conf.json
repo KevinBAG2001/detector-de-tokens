@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.antigravity.hotbar",
   "build": {
-    "beforeDevCommand": "pnpm --filter @antigravity/local-ingest build && pnpm dev:ui",
+    "beforeDevCommand": "pnpm --filter @antigravity/local-ingest... build && pnpm dev:ui",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm --filter @antigravity/local-ingest build && pnpm build:ui",
     "frontendDist": "../dist"
@@ -14,13 +14,18 @@
       {
         "label": "main",
         "title": "Antigravity Hotbar",
-        "width": 380,
-        "height": 420,
+        "width": 360,
+        "height": 340,
+        "minWidth": 320,
+        "minHeight": 280,
+        "maxWidth": 480,
+        "maxHeight": 520,
         "resizable": true,
         "alwaysOnTop": true,
-        "decorations": true,
-        "skipTaskbar": false,
-        "visible": true
+        "decorations": false,
+        "skipTaskbar": true,
+        "visible": true,
+        "shadow": true
       }
     ],
     "security": {
