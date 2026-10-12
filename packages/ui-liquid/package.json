@@ -1,0 +1,31 @@
+{
+  "name": "@antigravity/ui-liquid",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/liquid.css"
+  },
+  "scripts": {
+    "build": "echo \"@antigravity/ui-liquid: consumido en origen por Vite\"",
+    "lint": "echo \"Lint ui-liquid...\"",
+    "test": "echo \"Sin tests ui-liquid\""
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.475.0",
+    "motion": "^12.4.7",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "react": "^19.1.0",
+    "typescript": "^5.5.4"
+  }
+}

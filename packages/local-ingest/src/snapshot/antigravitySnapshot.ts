@@ -1,6 +1,12 @@
 import { GranularTokenCount } from '@antigravity/domain-core';
 import { getAntigravityLogsRoot } from '../seguridad/validarRutaLogs.js';
 import { AntigravityTranscriptWatcherAdapter } from '../watcher/AntigravityTranscriptWatcherAdapter.js';
+import {
+  scanAntigravityIdeQuotaStatus,
+  type CuotaAntigravityIdeStatus,
+} from '../quota/scanAntigravityIdeQuota.js';
+
+export type { CuotaAntigravityEstado, CuotaAntigravityIdeStatus } from '../quota/scanAntigravityIdeQuota.js';
 
 export interface AntigravityTokenSnapshot {
   source: 'antigravity';
@@ -13,6 +19,8 @@ export interface AntigravityTokenSnapshot {
     thinking: number;
     totalAccumulated: number;
   };
+  /** Cuota individual inferida desde logs IDE (429 / Resets in); sin porcentajes inventados. */
+  quota: CuotaAntigravityIdeStatus;
   message: string | null;
 }
 
@@ -32,6 +40,7 @@ function serializeTokens(tokens: GranularTokenCount): AntigravityTokenSnapshot['
 export async function getAntigravityTokenSnapshot(): Promise<AntigravityTokenSnapshot> {
   const logsRoot = getAntigravityLogsRoot();
   const watcher = new AntigravityTranscriptWatcherAdapter();
+  const quota = scanAntigravityIdeQuotaStatus();
 
   try {
     const latest = watcher.getLatestSession();
@@ -41,6 +50,7 @@ export async function getAntigravityTokenSnapshot(): Promise<AntigravityTokenSna
         available: false,
         sessionId: null,
         tokens: serializeTokens(GranularTokenCount.empty()),
+        quota,
         message: `No hay sesiones con transcript en ${logsRoot}`,
       };
     }
@@ -51,6 +61,7 @@ export async function getAntigravityTokenSnapshot(): Promise<AntigravityTokenSna
       available: true,
       sessionId,
       tokens: serializeTokens(tokens),
+      quota,
       message: null,
     };
   } catch (error) {
@@ -60,6 +71,7 @@ export async function getAntigravityTokenSnapshot(): Promise<AntigravityTokenSna
       available: false,
       sessionId: null,
       tokens: serializeTokens(GranularTokenCount.empty()),
+      quota,
       message,
     };
   }
