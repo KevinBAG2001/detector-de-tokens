@@ -20,6 +20,8 @@ pnpm --filter @antigravity/hotbar dev
 
 Un solo comando: compila ingesta local, arranca Vite en un puerto libre y lanza Tauri (el puerto y el `devUrl` se alinean automáticamente; sin pasos extra).
 
+Tras abrir el panel, la tarjeta **Google Antigravity** debe mostrar métricas o un mensaje tipo «sin sesiones» — no `EISDIR` ni «Salida vacía del CLI».
+
 ### Variables de entorno
 
 Opcionalmente `ANTIGRAVITY_LOGS_ROOT` apuntando al directorio `brain` de Antigravity (por defecto `~/.gemini/antigravity-ide/brain`).
@@ -39,7 +41,7 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 | Capa | Responsabilidad |
 |------|-----------------|
 | `@antigravity/local-ingest` | Parser JSONL, validación `validarRutaLogs`, snapshot CLI |
-| Comando Tauri `fetch_antigravity_snapshot` | Ejecuta `node dist/cli/snapshot.js` con cwd en `packages/local-ingest` (sin `NODE_PATH` heredado) |
+| Comando Tauri `fetch_antigravity_snapshot` | `node dist/cli/snapshot.js` (ruta relativa, cwd sin `\\?\`) en `packages/local-ingest`; fallback `pnpm run snapshot` en Windows |
 | UI React | Muestra métricas; stubs Cursor / procesos / Docker |
 
 ## Stubs (v1)

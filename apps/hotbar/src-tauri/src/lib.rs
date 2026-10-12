@@ -30,15 +30,81 @@ pub struct AntigravitySnapshot {
 
 const SNAPSHOT_SCRIPT: &str = "dist/cli/snapshot.js";
 
+/// Rust `canonicalize()` en Windows devuelve rutas `\\?\` que Node 22+ rompe (EISDIR en `C:\`).
+fn normalize_path_for_subprocess(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    #[cfg(windows)]
+    {
+        const VERBATIM: &str = r"\\?\";
+        if let Some(rest) = text.strip_prefix(VERBATIM) {
+            const UNC: &str = "UNC\\";
+            if let Some(unc) = rest.strip_prefix(UNC) {
+                return PathBuf::from(format!(r"\\{unc}"));
+            }
+            return PathBuf::from(rest);
+        }
+    }
+    path
+}
+
 fn workspace_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
+    let manifest_relative = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let resolved = manifest_relative
         .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
+        .unwrap_or(manifest_relative);
+    normalize_path_for_subprocess(resolved)
 }
 
 fn local_ingest_package_dir() -> PathBuf {
-    workspace_root().join("packages/local-ingest")
+    normalize_path_for_subprocess(workspace_root().join("packages/local-ingest"))
+}
+
+#[cfg(windows)]
+fn is_bare_windows_drive(segment: &str) -> bool {
+    let trimmed = segment.trim();
+    let bytes = trimmed.as_bytes();
+    if bytes.len() == 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+        return true;
+    }
+    let no_trailing = trimmed.trim_end_matches('\\').trim_end_matches('/');
+    let bytes = no_trailing.as_bytes();
+    bytes.len() == 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic()
+}
+
+#[cfg(windows)]
+fn sanitize_windows_path_list(raw: &str) -> String {
+    raw.split(';')
+        .filter_map(|segment| {
+            let trimmed = segment.trim();
+            if trimmed.is_empty() || is_bare_windows_drive(trimmed) {
+                return None;
+            }
+            Some(trimmed.trim_start_matches(r"\\?\"))
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn sanitize_env_value(key: &str, value: String) -> String {
+    #[cfg(windows)]
+    {
+        if key.eq_ignore_ascii_case("PATH") {
+            return sanitize_windows_path_list(&value);
+        }
+        if value.contains(r"\\?\") {
+            return value.replace(r"\\?\", "");
+        }
+    }
+    value
+}
+
+fn apply_snapshot_child_env(command: &mut Command) {
+    for (key, value) in std::env::vars() {
+        if matches!(key.as_str(), "NODE_PATH" | "NODE_OPTIONS") {
+            continue;
+        }
+        command.env(&key, sanitize_env_value(&key, value));
+    }
 }
 
 fn resolve_node_program() -> String {
@@ -56,31 +122,65 @@ fn resolve_node_program() -> String {
     "node".to_string()
 }
 
-/// Ejecuta el snapshot CLI con cwd en el paquete de ingesta y sin NODE_PATH heredado
-/// (en Windows un NODE_PATH roto hacia `C:\` provoca EISDIR al resolver módulos ESM).
-fn spawn_snapshot_cli(node: &str, package_dir: &Path) -> std::io::Result<std::process::Output> {
-    let script = package_dir.join(SNAPSHOT_SCRIPT);
+fn spawn_snapshot_cli_node(node: &str, package_dir: &Path) -> std::io::Result<std::process::Output> {
     let mut command = Command::new(node);
-    command.arg(&script).current_dir(package_dir);
+    // Ruta relativa + cwd normalizado: evita prefijo `\\?\` en argv (bug Node 22+/26 en Windows).
+    command
+        .arg(SNAPSHOT_SCRIPT)
+        .current_dir(package_dir);
+    apply_snapshot_child_env(&mut command);
+    command.output()
+}
 
-    for (key, value) in std::env::vars() {
-        if key == "NODE_PATH" {
-            continue;
-        }
-        command.env(key, value);
+fn spawn_snapshot_cli_pnpm(package_dir: &Path) -> std::io::Result<std::process::Output> {
+    let pnpm = if cfg!(windows) { "pnpm.cmd" } else { "pnpm" };
+    let mut command = Command::new(pnpm);
+    command
+        .args(["run", "snapshot", "--silent"])
+        .current_dir(package_dir);
+    apply_snapshot_child_env(&mut command);
+    command.output()
+}
+
+fn node_snapshot_needs_pnpm_fallback(stdout: &[u8], stderr: &[u8]) -> bool {
+    if !stdout.is_empty() {
+        return false;
+    }
+    let err = String::from_utf8_lossy(stderr);
+    err.contains("EISDIR")
+        || err.contains("Module._findPath")
+        || err.contains("realpathSync")
+}
+
+fn run_snapshot_cli(package_dir: &Path) -> Result<std::process::Output, String> {
+    let node = resolve_node_program();
+    let output = spawn_snapshot_cli_node(&node, package_dir)
+        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens ({node}): {e}"))?;
+
+    if node_snapshot_needs_pnpm_fallback(&output.stdout, &output.stderr) {
+        eprintln!("[hotbar] Reintentando ingesta vía pnpm run snapshot (resolución de módulos Node en Windows)");
+        return spawn_snapshot_cli_pnpm(package_dir).map_err(|e| {
+            format!(
+                "Falló Node y pnpm run snapshot: {e} — stderr Node: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            )
+        });
     }
 
-    command.output()
+    Ok(output)
 }
 
 fn parse_snapshot_stdout(stdout: &[u8], stderr: &[u8]) -> Result<AntigravitySnapshot, String> {
     let stdout_text = String::from_utf8_lossy(stdout);
     let text = stdout_text.trim();
     if text.is_empty() {
-        return Err(format!(
-            "Salida vacía del CLI de ingesta: {}",
-            String::from_utf8_lossy(stderr).trim()
-        ));
+        let stderr_text = String::from_utf8_lossy(stderr).trim().to_string();
+        if stderr_text.contains("EISDIR") {
+            return Err(format!(
+                "No se pudo ejecutar el CLI de ingesta (rutas Windows/Node). Detalle: {stderr_text}"
+            ));
+        }
+        return Err(format!("Salida vacía del CLI de ingesta: {stderr_text}"));
     }
 
     serde_json::from_str(text).map_err(|e| {
@@ -103,9 +203,7 @@ fn fetch_antigravity_snapshot() -> Result<AntigravitySnapshot, String> {
         ));
     }
 
-    let node = resolve_node_program();
-    let output = spawn_snapshot_cli(&node, &package_dir)
-        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens ({node}): {e}"))?;
+    let output = run_snapshot_cli(&package_dir)?;
 
     // El CLI sale con código 2 cuando `available: false`, pero sigue emitiendo JSON en stdout.
     parse_snapshot_stdout(&output.stdout, &output.stderr)
