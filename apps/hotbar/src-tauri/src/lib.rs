@@ -3,9 +3,10 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, RunEvent,
+    AppHandle, Emitter, Manager, RunEvent,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +112,39 @@ fn fetch_antigravity_snapshot() -> Result<AntigravitySnapshot, String> {
     parse_snapshot_stdout(&output.stdout, &output.stderr)
 }
 
+fn resolve_tray_icon(app: &tauri::App) -> Image<'static> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for name in ["icons/icon.ico", "icons/32x32.png"] {
+        let path = manifest_dir.join(name);
+        if !path.is_file() {
+            continue;
+        }
+        match Image::from_path(&path) {
+            Ok(image) => return image.to_owned(),
+            Err(err) => eprintln!(
+                "[hotbar] No se pudo cargar el icono de bandeja {}: {err}",
+                path.display()
+            ),
+        }
+    }
+
+    eprintln!("[hotbar] Usando icono por defecto de la ventana para la bandeja");
+    app.default_window_icon()
+        .expect("icono de ventana por defecto")
+        .to_owned()
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(err) = window.show() {
+            eprintln!("[hotbar] No se pudo mostrar la ventana principal: {err}");
+        }
+        if let Err(err) = window.set_focus() {
+            eprintln!("[hotbar] No se pudo enfocar la ventana principal: {err}");
+        }
+    }
+}
+
 #[tauri::command]
 fn toggle_hotbar_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
@@ -134,15 +168,13 @@ pub fn run() {
             let quit_item = PredefinedMenuItem::quit(app, Some("Salir"))?;
             let tray_menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
-            let icon = app
-                .default_window_icon()
-                .cloned()
-                .expect("icono de ventana por defecto");
+            let icon = resolve_tray_icon(app);
 
-            TrayIconBuilder::new()
+            if let Err(err) = TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&tray_menu)
-                .tooltip("Antigravity Hotbar")
+                .show_menu_on_left_click(false)
+                .tooltip("Antigravity Hotbar — clic: mostrar/ocultar · clic derecho: menú")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
                         let _ = toggle_hotbar_window(app.clone());
@@ -165,9 +197,12 @@ pub fn run() {
                         let _ = toggle_hotbar_window(app.clone());
                     }
                 })
-                .build(app)?;
+                .build(app)
+            {
+                eprintln!("[hotbar] AVISO: no se pudo crear el icono de bandeja: {err}");
+            }
 
-            // Arranque en bandeja: la ventana permanece oculta hasta clic en el icono o menú.
+            show_main_window(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

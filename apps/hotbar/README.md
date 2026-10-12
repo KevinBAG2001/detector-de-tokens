@@ -52,4 +52,4 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 - Clic izquierdo en el icono: mostrar/ocultar ventana.
 - Menú contextual: mostrar/ocultar, actualizar métricas, salir.
 - Cerrar la ventana la oculta (la app permanece en bandeja).
-- Al arrancar la ventana queda **oculta** (solo bandeja); sin barra de título ni entrada en la barra de tareas (overlay compacto).
+- Al arrancar se muestra el **panel overlay** (sin barra de título ni entrada en la barra de tareas); la bandeja sirve para mostrar/ocultar (clic izquierdo) y menú (clic derecho).
