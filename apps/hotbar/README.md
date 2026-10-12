@@ -42,7 +42,7 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 | Capa | Responsabilidad |
 |------|-----------------|
 | `@antigravity/local-ingest` | Parser JSONL, validación `validarRutaLogs`, snapshot CLI |
-| Comando Tauri `fetch_antigravity_snapshot` | Ejecuta `node packages/local-ingest/dist/cli/snapshot.js` |
+| Comando Tauri `fetch_antigravity_snapshot` | Ejecuta `node dist/cli/snapshot.js` con cwd en `packages/local-ingest` (sin `NODE_PATH` heredado) |
 | UI React | Muestra métricas; stubs Cursor / procesos / Docker |
 
 ## Stubs (v1)
@@ -55,3 +55,22 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 - Clic izquierdo en el icono: mostrar/ocultar ventana.
 - Menú contextual: mostrar/ocultar, actualizar métricas, salir.
 - Cerrar la ventana la oculta (la app permanece en bandeja).
+- Al arrancar la ventana queda **oculta** (solo bandeja); sin barra de título ni entrada en la barra de tareas (overlay compacto).
+
+## Prueba local (Windows / Linux)
+
+Tras `git pull` de la rama con estos cambios:
+
+```bash
+pnpm install
+pnpm --filter @antigravity/domain-core build
+pnpm --filter @antigravity/local-ingest build
+pnpm --filter @antigravity/hotbar dev
+```
+
+1. Comprobar que el icono aparece en la bandeja y **no** hay ventana al inicio.
+2. Clic en la bandeja: panel compacto sin decoraciones, siempre encima, arrastrable desde la cabecera.
+3. Panel Antigravity: debe mostrar JSON válido (métricas o mensaje «sin sesiones»), no error de stdout vacío / `EISDIR`.
+4. Opcional: `cd packages/local-ingest && node dist/cli/snapshot.js` — misma salida que usa Rust.
+
+Si Antigravity no tiene logs, el panel muestra el mensaje del CLI (`available: false`), no números inventados.

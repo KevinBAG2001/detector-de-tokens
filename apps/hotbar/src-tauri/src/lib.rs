@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,8 @@ pub struct AntigravitySnapshot {
     pub message: Option<String>,
 }
 
+const SNAPSHOT_SCRIPT: &str = "dist/cli/snapshot.js";
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../..")
@@ -35,38 +37,77 @@ fn workspace_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
 }
 
-fn snapshot_cli_path() -> PathBuf {
-    workspace_root().join("packages/local-ingest/dist/cli/snapshot.js")
+fn local_ingest_package_dir() -> PathBuf {
+    workspace_root().join("packages/local-ingest")
+}
+
+fn resolve_node_program() -> String {
+    #[cfg(windows)]
+    {
+        for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+            if let Ok(base) = std::env::var(key) {
+                let candidate = PathBuf::from(base).join("nodejs").join("node.exe");
+                if candidate.is_file() {
+                    return candidate.to_string_lossy().into_owned();
+                }
+            }
+        }
+    }
+    "node".to_string()
+}
+
+/// Ejecuta el snapshot CLI con cwd en el paquete de ingesta y sin NODE_PATH heredado
+/// (en Windows un NODE_PATH roto hacia `C:\` provoca EISDIR al resolver módulos ESM).
+fn spawn_snapshot_cli(node: &str, package_dir: &Path) -> std::io::Result<std::process::Output> {
+    let script = package_dir.join(SNAPSHOT_SCRIPT);
+    let mut command = Command::new(node);
+    command.arg(&script).current_dir(package_dir);
+
+    for (key, value) in std::env::vars() {
+        if key == "NODE_PATH" {
+            continue;
+        }
+        command.env(key, value);
+    }
+
+    command.output()
+}
+
+fn parse_snapshot_stdout(stdout: &[u8], stderr: &[u8]) -> Result<AntigravitySnapshot, String> {
+    let text = String::from_utf8_lossy(stdout).trim();
+    if text.is_empty() {
+        return Err(format!(
+            "Salida vacía del CLI de ingesta: {}",
+            String::from_utf8_lossy(stderr).trim()
+        ));
+    }
+
+    serde_json::from_str(text).map_err(|e| {
+        format!(
+            "JSON inválido del CLI: {e} — stderr: {}",
+            String::from_utf8_lossy(stderr).trim()
+        )
+    })
 }
 
 /// Invoca el CLI de `@antigravity/local-ingest` (Node) para leer logs locales sin servidor HTTP.
 #[tauri::command]
 fn fetch_antigravity_snapshot() -> Result<AntigravitySnapshot, String> {
-    let cli = snapshot_cli_path();
-    if !cli.exists() {
+    let package_dir = local_ingest_package_dir();
+    let script = package_dir.join(SNAPSHOT_SCRIPT);
+    if !script.is_file() {
         return Err(format!(
             "CLI de ingesta no compilado. Ejecute: pnpm --filter @antigravity/local-ingest build (ruta esperada: {})",
-            cli.display()
+            script.display()
         ));
     }
 
-    let output = Command::new("node")
-        .arg(&cli)
-        .current_dir(workspace_root())
-        .output()
-        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens: {e}"))?;
+    let node = resolve_node_program();
+    let output = spawn_snapshot_cli(&node, &package_dir)
+        .map_err(|e| format!("No se pudo ejecutar Node para leer tokens ({node}): {e}"))?;
 
-    if output.stdout.is_empty() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Salida vacía del CLI de ingesta: {stderr}"));
-    }
-
-    serde_json::from_slice(&output.stdout).map_err(|e| {
-        format!(
-            "JSON inválido del CLI: {e} — stderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
+    // El CLI sale con código 2 cuando `available: false`, pero sigue emitiendo JSON en stdout.
+    parse_snapshot_stdout(&output.stdout, &output.stderr)
 }
 
 #[tauri::command]
@@ -97,7 +138,6 @@ pub fn run() {
                 .cloned()
                 .expect("icono de ventana por defecto");
 
-            let app_handle = app.handle().clone();
             TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&tray_menu)
@@ -126,10 +166,7 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.show();
-            }
-
+            // Arranque en bandeja: la ventana permanece oculta hasta clic en el icono o menú.
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
