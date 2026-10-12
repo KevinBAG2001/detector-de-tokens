@@ -3,7 +3,6 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, RunEvent,
@@ -112,28 +111,6 @@ fn fetch_antigravity_snapshot() -> Result<AntigravitySnapshot, String> {
     parse_snapshot_stdout(&output.stdout, &output.stderr)
 }
 
-fn resolve_tray_icon(app: &tauri::App) -> Image<'static> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for name in ["icons/icon.ico", "icons/32x32.png"] {
-        let path = manifest_dir.join(name);
-        if !path.is_file() {
-            continue;
-        }
-        match Image::from_path(&path) {
-            Ok(image) => return image.to_owned(),
-            Err(err) => eprintln!(
-                "[hotbar] No se pudo cargar el icono de bandeja {}: {err}",
-                path.display()
-            ),
-        }
-    }
-
-    eprintln!("[hotbar] Usando icono por defecto de la ventana para la bandeja");
-    app.default_window_icon()
-        .expect("icono de ventana por defecto")
-        .to_owned()
-}
-
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if let Err(err) = window.show() {
@@ -168,7 +145,14 @@ pub fn run() {
             let quit_item = PredefinedMenuItem::quit(app, Some("Salir"))?;
             let tray_menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
-            let icon = resolve_tray_icon(app);
+            let icon = match app.default_window_icon() {
+                Some(icon) => icon.clone(),
+                None => {
+                    eprintln!("[hotbar] AVISO: sin icono embebido; omitiendo bandeja del sistema");
+                    show_main_window(app.handle());
+                    return Ok(());
+                }
+            };
 
             if let Err(err) = TrayIconBuilder::new()
                 .icon(icon)
