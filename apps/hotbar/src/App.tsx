@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import {
+  HotbarPillDock,
+  KineticLiquidChamber,
+  QuotaLiquidPanel,
+  StubModuleCard,
+  TokenGranularBreakdown,
+} from '@antigravity/ui-liquid';
 import { fetchAntigravitySnapshot, type AntigravityTokenSnapshot } from './adapters/antigravityAdapter';
 import { getCursorTokenSnapshot } from './adapters/cursorAdapter';
 import { getDockerPanelState } from './adapters/dockerAdapter';
 import { getProcessesPanelState } from './adapters/processesAdapter';
 import { quotaDetailMessage, quotaEstadoLabel } from './lib/quotaDisplay';
 import { normalizarCuotaSnapshot } from './lib/quotaTypes';
-import './App.css';
 
 const REFRESH_MS = 15_000;
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('es-ES').format(value);
-}
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<AntigravityTokenSnapshot | null>(null);
@@ -60,83 +62,62 @@ export default function App() {
     };
   }, [refresh]);
 
-  const tokens = snapshot?.tokens;
+  const tokens = snapshot?.available ? snapshot.tokens : null;
   const quota = normalizarCuotaSnapshot(snapshot?.quota);
   const quotaDetail = quotaDetailMessage(quota, nowMs);
 
+  const sessionLabel =
+    snapshot?.sessionId?.slice(0, 18) ?? (snapshot?.available ? 'Sesión activa' : 'Sin sesión local');
+
+  const totalTokens = tokens?.totalAccumulated ?? (snapshot?.available ? 0 : null);
+
   return (
-    <main className="hotbar-shell">
-      <header className="hotbar-header" data-tauri-drag-region>
-        <div>
-          <p className="hotbar-kicker">Detector de tokens</p>
-          <h1>Antigravity Hotbar</h1>
-        </div>
-        <button type="button" className="hotbar-refresh" onClick={() => void refresh()} disabled={loading}>
-          {loading ? '…' : '↻'}
-        </button>
-      </header>
+    <main className="min-h-full w-full max-w-[420px] mx-auto px-2 py-2 flex flex-col gap-2 text-slate-100 select-none">
+      <HotbarPillDock
+        sessionLabel={sessionLabel}
+        totalTokens={totalTokens}
+        quotaTone={quota.estado}
+        loading={loading}
+        onRefresh={() => void refresh()}
+      />
 
-      <section className="hotbar-card hotbar-card--primary" aria-live="polite">
-        <h2>Google Antigravity</h2>
-        {error && <p className="hotbar-muted hotbar-error">{error}</p>}
-        {!error && snapshot && !snapshot.available && (
-          <p className="hotbar-muted">{snapshot.message ?? 'Sin datos locales'}</p>
-        )}
-        <div
-          className={`hotbar-quota hotbar-quota--${quota.estado}`}
-          aria-label="Cuota individual Antigravity"
-        >
-          <p className="hotbar-quota-kicker">Uso semanal (inferido)</p>
-          <p className="hotbar-quota-estado">{quotaEstadoLabel(quota.estado)}</p>
-          <p className="hotbar-quota-detail">{quotaDetail}</p>
-          <p className="hotbar-quota-source">
-            Derivado de logs locales del IDE Antigravity; no incluye porcentaje ni límite oficial.
-          </p>
-        </div>
+      {error && (
+        <p className="text-[11px] text-amber-200/90 px-1" role="alert">
+          {error}
+        </p>
+      )}
 
-        {tokens && snapshot?.available && (
-          <>
-            <p className="hotbar-session">Sesión: {snapshot.sessionId ?? '—'}</p>
-            <p className="hotbar-total">{formatNumber(tokens.totalAccumulated)} tokens</p>
-            <dl className="hotbar-grid">
-              <div>
-                <dt>Prompt</dt>
-                <dd>{formatNumber(tokens.prompt)}</dd>
-              </div>
-              <div>
-                <dt>Output</dt>
-                <dd>{formatNumber(tokens.output)}</dd>
-              </div>
-              <div>
-                <dt>Cached</dt>
-                <dd>{formatNumber(tokens.cached)}</dd>
-              </div>
-              <div>
-                <dt>Thinking</dt>
-                <dd>{formatNumber(tokens.thinking)}</dd>
-              </div>
-            </dl>
-          </>
-        )}
-      </section>
+      <KineticLiquidChamber
+        compact
+        totalTokens={totalTokens}
+        prompt={tokens?.prompt ?? 0}
+        output={tokens?.output ?? 0}
+        cached={tokens?.cached ?? 0}
+        thinking={tokens?.thinking ?? 0}
+      />
 
-      <section className="hotbar-card hotbar-card--disabled">
-        <h2>Cursor</h2>
-        <p className="hotbar-muted">{cursorStub.reason}</p>
-      </section>
+      <TokenGranularBreakdown
+        compact
+        prompt={tokens?.prompt ?? null}
+        output={tokens?.output ?? null}
+        cached={tokens?.cached ?? null}
+        thinking={tokens?.thinking ?? null}
+        total={totalTokens}
+      />
 
-      <section className="hotbar-card hotbar-card--stub">
-        <h2>Procesos dev</h2>
-        <p className="hotbar-muted">{processesStub.note}</p>
-      </section>
+      <QuotaLiquidPanel
+        compact
+        estado={quota.estado}
+        estadoLabel={quotaEstadoLabel(quota.estado)}
+        detail={quotaDetail}
+      />
 
-      <section className="hotbar-card hotbar-card--stub">
-        <h2>Docker</h2>
-        <p className="hotbar-muted">{dockerStub.note}</p>
-      </section>
+      <StubModuleCard title="Cursor" body={cursorStub.reason} variant="disabled" />
+      <StubModuleCard title="Procesos dev" body={processesStub.note} />
+      <StubModuleCard title="Docker" body={dockerStub.note} />
 
-      <footer className="hotbar-footer">
-        <span>Bandeja del sistema · clic para mostrar/ocultar</span>
+      <footer className="text-[9px] text-center text-slate-600 pb-1" data-tauri-drag-region>
+        Bandeja del sistema · clic para mostrar/ocultar
       </footer>
     </main>
   );
