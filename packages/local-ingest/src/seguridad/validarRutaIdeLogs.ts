@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { ErrorValidacionRuta } from './ErrorValidacionRuta.js';
+import { resolveWindowsAppDataRoaming } from './resolveWindowsAppDataRoaming.js';
 
 function perteneceARaiz(normRoot: string, normTarget: string): boolean {
   return normTarget === normRoot || normTarget.startsWith(`${normRoot}/`);
@@ -19,9 +20,9 @@ export function getAntigravityIdeLogsRoot(): string {
   }
 
   if (process.platform === 'win32') {
-    const appData = process.env.APPDATA;
-    if (appData && appData.trim() !== '') {
-      return path.join(appData, 'Antigravity IDE', 'logs');
+    const roaming = resolveWindowsAppDataRoaming();
+    if (roaming) {
+      return path.join(roaming, 'Antigravity IDE', 'logs');
     }
   }
 
