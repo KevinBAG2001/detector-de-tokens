@@ -20,7 +20,9 @@ pnpm --filter @antigravity/local-ingest build
 pnpm --filter @antigravity/hotbar dev
 ```
 
-Esto compila el CLI de ingesta local y arranca `tauri dev` (Vite en `http://localhost:1420`).
+Esto compila el CLI de ingesta local y arranca `tauri dev`. El script `scripts/tauri-dev.mjs` elige un puerto libre (por defecto desde **1420**) y pasa el mismo `devUrl` a Tauri; Vite usa `HOTBAR_DEV_PORT` y `strictPort: false` por si el puerto reservado cambia al relanzar.
+
+Para forzar un puerto concreto: `HOTBAR_DEV_PORT=1430 pnpm --filter @antigravity/hotbar dev`.
 
 ### Variables de entorno
 
@@ -72,5 +74,6 @@ pnpm --filter @antigravity/hotbar dev
 2. Clic en la bandeja: panel compacto sin decoraciones, siempre encima, arrastrable desde la cabecera.
 3. Panel Antigravity: debe mostrar JSON válido (métricas o mensaje «sin sesiones»), no error de stdout vacío / `EISDIR`.
 4. Opcional: `cd packages/local-ingest && node dist/cli/snapshot.js` — misma salida que usa Rust.
+5. Relanzar `pnpm --filter @antigravity/hotbar dev` varias veces: no debe fallar con «Port 1420 is already in use» (el script reserva otro puerto libre).
 
 Si Antigravity no tiene logs, el panel muestra el mensaje del CLI (`available: false`), no números inventados.
