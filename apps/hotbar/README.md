@@ -20,7 +20,7 @@ pnpm --filter @antigravity/local-ingest build
 pnpm --filter @antigravity/hotbar dev
 ```
 
-Esto compila el CLI de ingesta local y arranca `tauri dev`. El script `scripts/tauri-dev.mjs` elige un puerto libre (por defecto desde **1420**) y pasa el mismo `devUrl` a Tauri; Vite usa `HOTBAR_DEV_PORT` y `strictPort: false` por si el puerto reservado cambia al relanzar.
+Esto compila el CLI de ingesta local y arranca `tauri dev`. El script `scripts/tauri-dev.mjs` elige un puerto libre (por defecto desde **1420**), escribe un JSON temporal de override y pasa su ruta a `tauri dev --config` (compatible Windows/Linux); Vite usa `HOTBAR_DEV_PORT` y `strictPort: false`.
 
 Para forzar un puerto concreto: `HOTBAR_DEV_PORT=1430 pnpm --filter @antigravity/hotbar dev`.
 

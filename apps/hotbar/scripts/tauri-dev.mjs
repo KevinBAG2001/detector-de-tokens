@@ -1,4 +1,7 @@
 import { spawn } from 'node:child_process';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { findFreePort } from './find-free-port.mjs';
@@ -13,30 +16,66 @@ const env = {
   HOTBAR_DEV_PORT: String(port),
 };
 
-const configOverride = JSON.stringify({
-  build: {
-    devUrl: `http://localhost:${port}`,
-  },
-});
+/** Ruta a JSON válido para `--config` (evita quoting roto en Windows). */
+const configPath = join(tmpdir(), `hotbar-tauri-dev-${randomUUID()}.json`);
+writeFileSync(
+  configPath,
+  JSON.stringify(
+    {
+      build: {
+        devUrl: `http://localhost:${port}`,
+      },
+    },
+    null,
+    2,
+  ),
+  'utf8',
+);
+
+const removeConfigFile = () => {
+  try {
+    unlinkSync(configPath);
+  } catch {
+    // ya eliminado o sin permisos
+  }
+};
 
 console.log(`[hotbar] Vite/Tauri dev en http://localhost:${port}`);
+console.log(`[hotbar] override Tauri: ${configPath}`);
 
-const child = spawn('pnpm', ['exec', 'tauri', 'dev', '--config', configOverride], {
-  cwd: hotbarRoot,
-  env,
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-});
+const pnpmCmd = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
-child.on('exit', (code, signal) => {
+const child = spawn(
+  pnpmCmd,
+  ['exec', 'tauri', 'dev', '--config', configPath],
+  {
+    cwd: hotbarRoot,
+    env,
+    stdio: 'inherit',
+    shell: false,
+  },
+);
+
+const shutdown = (code, signal) => {
+  removeConfigFile();
   if (signal) {
     process.kill(process.pid, signal);
     return;
   }
   process.exit(code ?? 0);
-});
+};
+
+child.on('exit', (code, signal) => shutdown(code, signal));
 
 child.on('error', (err) => {
+  removeConfigFile();
   console.error('[hotbar] No se pudo arrancar tauri dev:', err);
   process.exit(1);
 });
+
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    removeConfigFile();
+    child.kill(sig);
+  });
+}
