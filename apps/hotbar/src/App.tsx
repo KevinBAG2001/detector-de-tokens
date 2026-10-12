@@ -75,53 +75,60 @@ export default function App() {
     : null;
 
   return (
-    <main className="min-h-full w-full max-w-[420px] mx-auto px-2 py-2 flex flex-col gap-2 text-slate-100 select-none">
-      <HotbarPillDock
-        sessionLabel={sessionLabel}
-        totalTokens={totalTokens}
-        quotaTone={quota.estado}
-        loading={loading}
-        onRefresh={() => void refresh()}
-      />
+    <div className="w-full max-w-[420px] mx-auto p-1.5 box-border overflow-x-hidden">
+      <main
+        className="hotbar-shell w-full max-w-full box-border px-2.5 py-2 flex flex-col gap-2 text-slate-100 select-none overflow-x-hidden overflow-y-auto max-h-[min(640px,100vh)]"
+        style={{ scrollbarWidth: 'thin' }}
+      >
+        <HotbarPillDock
+          sessionLabel={sessionLabel}
+          totalTokens={totalTokens}
+          quotaTone={quota.estado}
+          loading={loading}
+          onRefresh={() => void refresh()}
+        />
 
-      {error && (
-        <p className="text-[11px] text-amber-200/90 px-1" role="alert">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className="text-[11px] text-amber-200/90 px-0.5 leading-snug" role="alert">
+            {error}
+          </p>
+        )}
 
-      <KineticLiquidChamber
-        compact
-        totalTokens={totalTokens}
-        prompt={tokens?.prompt ?? null}
-        output={tokens?.output ?? null}
-        cached={tokens?.cached ?? null}
-        thinking={tokens?.thinking ?? null}
-      />
+        <KineticLiquidChamber
+          compact
+          totalTokens={totalTokens}
+          prompt={tokens?.prompt ?? null}
+          output={tokens?.output ?? null}
+          cached={tokens?.cached ?? null}
+          thinking={tokens?.thinking ?? null}
+        />
 
-      <TokenGranularBreakdown
-        compact
-        prompt={tokens?.prompt ?? null}
-        output={tokens?.output ?? null}
-        cached={tokens?.cached ?? null}
-        thinking={tokens?.thinking ?? null}
-        total={totalTokens}
-      />
+        <TokenGranularBreakdown
+          compact
+          prompt={tokens?.prompt ?? null}
+          output={tokens?.output ?? null}
+          cached={tokens?.cached ?? null}
+          thinking={tokens?.thinking ?? null}
+          total={totalTokens}
+        />
 
-      <QuotaLiquidPanel
-        compact
-        estado={quota.estado}
-        estadoLabel={quotaEstadoLabel(quota.estado)}
-        detail={quotaDetail}
-      />
+        <QuotaLiquidPanel
+          compact
+          estado={quota.estado}
+          estadoLabel={quotaEstadoLabel(quota.estado)}
+          detail={quotaDetail}
+        />
 
-      <StubModuleCard title="Cursor" body={cursorStub.reason} variant="disabled" />
-      <StubModuleCard title="Procesos dev" body={processesStub.note} />
-      <StubModuleCard title="Docker" body={dockerStub.note} />
+        <div className="flex flex-col gap-1.5">
+          <StubModuleCard title="Cursor" body={cursorStub.reason} variant="disabled" />
+          <StubModuleCard title="Procesos dev" body={processesStub.note} />
+          <StubModuleCard title="Docker" body={dockerStub.note} />
+        </div>
 
-      <footer className="text-[9px] text-center text-slate-600 pb-1" data-tauri-drag-region>
-        Bandeja del sistema · clic para mostrar/ocultar
-      </footer>
-    </main>
+        <footer className="text-[9px] text-center text-slate-500 pb-0.5 shrink-0" data-tauri-drag-region>
+          Bandeja · clic para mostrar/ocultar
+        </footer>
+      </main>
+    </div>
   );
 }

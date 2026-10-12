@@ -67,10 +67,7 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
       return {
         primaryColor: '#34D399',
         wavePrimary: 'rgba(52, 211, 153, 0.45)',
-        waveSecondary: 'rgba(16, 185, 129, 0.35)',
-        waveTertiary: 'rgba(209, 250, 229, 0.2)',
-        crestColor: '#34D399',
-        glowShadow: '0 0 40px rgba(52,211,153,0.18)',
+        glowShadow: compact ? 'none' : '0 0 28px rgba(52,211,153,0.15)',
         badgeBorder: 'border-emerald-400/30 text-emerald-300',
         textMetric: 'text-emerald-200',
         pingDot: 'bg-emerald-400',
@@ -79,91 +76,96 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
     return {
       primaryColor: '#00F0FF',
       wavePrimary: 'rgba(0, 240, 255, 0.45)',
-      waveSecondary: 'rgba(0, 219, 233, 0.35)',
-      waveTertiary: 'rgba(219, 252, 255, 0.2)',
-      crestColor: '#00F0FF',
-      glowShadow: '0 0 40px rgba(0,240,255,0.2)',
+      glowShadow: compact ? 'none' : '0 0 28px rgba(0,240,255,0.15)',
       badgeBorder: 'border-cyan-400/30 text-cyan-300',
       textMetric: 'text-cyan-200',
       pingDot: 'bg-[#00F0FF]',
     };
-  }, [c, total]);
+  }, [c, total, compact]);
 
-  const chamberSize = compact ? 'w-44 h-44' : 'w-64 sm:w-72 h-64 sm:h-72';
+  const chamberSize = compact ? 'w-[7.5rem] h-[7.5rem]' : 'w-64 sm:w-72 h-64 sm:h-72';
+  const cardPad = compact ? 'p-2.5' : 'p-4 sm:p-5';
+
+  const cardShadow = compact
+    ? 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 20px -10px rgba(0,0,0,0.55)'
+    : `inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 16px 32px -12px rgba(0,0,0,0.65)${theme.glowShadow !== 'none' ? `, ${theme.glowShadow}` : ''}`;
 
   return (
     <div
-      className={`relative rounded-3xl p-4 sm:p-5 bg-[#0f131b]/85 backdrop-blur-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col ${className}`}
-      style={{
-        boxShadow: `inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 20px 40px -15px rgba(0,0,0,0.7), ${theme.glowShadow}`,
-      }}
+      className={`relative max-w-full rounded-2xl ${cardPad} bg-[#0f131b]/95 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col isolate ${className}`}
+      style={{ boxShadow: cardShadow }}
     >
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent pointer-events-none" />
-
-      <div className="flex items-center justify-between z-10 mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-slate-800/80 border border-white/10 flex items-center justify-center">
-            <Droplet className="w-3.5 h-3.5 text-cyan-400" />
+      <div className="flex items-center justify-between z-10 mb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 shrink-0 rounded-full bg-slate-800/80 border border-white/10 flex items-center justify-center">
+            <Droplet className="w-3 h-3 text-cyan-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-[9px] uppercase font-mono tracking-wider text-slate-400">
               Cámara líquida
             </div>
-            <div className="text-xs font-semibold text-slate-100">Antigravity</div>
+            <div className="text-xs font-semibold text-slate-100 truncate">Antigravity</div>
           </div>
         </div>
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/80 border text-[9px] font-mono ${theme.badgeBorder}`}
+          className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/80 border text-[9px] font-mono ${theme.badgeBorder}`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${theme.pingDot} animate-ping`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${theme.pingDot}`} />
           LOCAL
         </span>
       </div>
 
-      <div className="relative w-full flex items-center justify-center my-1">
+      <div className="relative w-full max-w-full flex items-center justify-center overflow-hidden">
         <div
-          className={`relative ${chamberSize} rounded-full p-2 bg-gradient-to-b from-slate-800/40 to-slate-950/70 backdrop-blur-xl flex items-center justify-center overflow-hidden border border-white/10`}
+          className={`relative ${chamberSize} max-w-full shrink-0 rounded-full p-1.5 bg-gradient-to-b from-slate-800/40 to-slate-950/70 border border-white/10 overflow-hidden`}
           style={{
-            boxShadow: `inset 0 2px 12px rgba(255,255,255,0.2), 0 20px 50px rgba(0,0,0,0.85), ${theme.glowShadow}`,
+            boxShadow: 'inset 0 2px 8px rgba(255,255,255,0.15), inset 0 -8px 16px rgba(0,0,0,0.5)',
           }}
         >
           <div className="relative w-full h-full rounded-full overflow-hidden bg-[#0a0e15]/95 flex flex-col justify-end">
             {rippling && (
               <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden flex items-center justify-center">
                 <div
-                  className="rounded-full border border-cyan-300/80 ripple-ring-active"
-                  style={{ width: '80px', height: '80px' }}
+                  className="rounded-full border border-cyan-300/60 ripple-ring-active"
+                  style={{ width: '64px', height: '64px' }}
                 />
               </div>
             )}
 
             <motion.div
-              className="relative w-full will-change-[height] flex flex-col justify-end overflow-hidden"
+              className="relative w-full overflow-hidden flex flex-col justify-end"
               style={{ height: heightStyle }}
             >
-              <div className="w-[200%] h-full absolute -bottom-1 -left-[50%] opacity-85 animate-wave-slow">
-                <svg
-                  className="w-full h-full"
-                  style={{ fill: theme.wavePrimary }}
-                  preserveAspectRatio="none"
-                  viewBox="0 0 500 150"
+              <div className="absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-full opacity-80 animate-wave-slow"
+                  style={{ maxWidth: '100%' }}
                 >
-                  <path d="M0.00,49.98 C150.00,140.00 349.81,-40.00 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
-                </svg>
+                  <svg
+                    className="w-full h-full"
+                    style={{ fill: theme.wavePrimary }}
+                    preserveAspectRatio="none"
+                    viewBox="0 0 500 150"
+                  >
+                    <path d="M0.00,49.98 C150.00,140.00 349.81,-40.00 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+                  </svg>
+                </div>
               </div>
               <div
                 className="w-full h-full"
                 style={{
-                  background: `linear-gradient(to top, ${theme.primaryColor}88 0%, ${theme.primaryColor}33 60%, transparent 100%)`,
+                  background: `linear-gradient(to top, ${theme.primaryColor}77 0%, ${theme.primaryColor}22 70%, transparent 100%)`,
                 }}
               />
             </motion.div>
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30 px-2 text-center">
-              <span className="text-[9px] font-mono tracking-widest text-slate-400 uppercase">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30 px-1 text-center">
+              <span className="text-[8px] font-mono tracking-wider text-slate-400 uppercase leading-tight">
                 Tokens acumulados
               </span>
-              <span className={`text-2xl sm:text-3xl font-extrabold font-mono drop-shadow-lg ${theme.textMetric}`}>
+              <span
+                className={`text-lg font-extrabold font-mono leading-tight ${theme.textMetric}`}
+              >
                 {!hasSeries ? 'Sin dato' : formatTokenCountEs(total)}
               </span>
             </div>
@@ -171,7 +173,9 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1.5 pt-3 border-t border-white/5 z-10 text-center text-[9px] font-mono">
+      <div
+        className={`grid ${compact ? 'grid-cols-2' : 'grid-cols-4'} gap-1.5 pt-2 mt-1 border-t border-white/5 z-10 text-center text-[9px] font-mono`}
+      >
         <MetricChip label="Prompt" value={prompt} unknown={!hasSeries} accent="text-slate-200" />
         <MetricChip label="Output" value={output} unknown={!hasSeries} accent="text-slate-200" />
         <MetricChip label="Cached" value={cached} unknown={!hasSeries} accent="text-emerald-300" />
@@ -196,9 +200,11 @@ function MetricChip({
     unknown || value === null || value === undefined ? 'Sin dato' : formatTokenCountEs(value);
 
   return (
-    <div className="p-1.5 rounded-lg bg-slate-900/50 border border-white/5">
-      <div className="text-slate-500 uppercase">{label}</div>
-      <div className={`text-[10px] font-bold mt-0.5 ${unknown ? 'text-slate-500' : accent}`}>{display}</div>
+    <div className="p-1.5 rounded-lg bg-slate-900/50 border border-white/5 min-w-0">
+      <div className="text-slate-500 uppercase truncate">{label}</div>
+      <div className={`text-[10px] font-bold mt-0.5 truncate ${unknown ? 'text-slate-500' : accent}`}>
+        {display}
+      </div>
     </div>
   );
 }

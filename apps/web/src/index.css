@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@source "./**/*.{tsx,ts}";
+@source "../../../packages/ui-liquid/src/**/*.{tsx,ts}";
+
 @import "@antigravity/ui-liquid/styles.css";
 
 @layer base {

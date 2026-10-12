@@ -27,9 +27,11 @@ export const TokenGranularBreakdown: React.FC<TokenGranularBreakdownProps> = ({
   const pad = compact ? 'p-3' : 'p-4';
   return (
     <div className={`rounded-2xl glass-panel ${pad} space-y-3`}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-200">Desglose de tokens</h3>
-        <span className="text-[10px] font-mono text-slate-500">Solo datos locales</span>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold text-slate-200 shrink-0">Desglose de tokens</h3>
+        <span className="text-[10px] font-mono text-slate-500 text-right leading-tight">
+          Solo datos locales
+        </span>
       </div>
       <dl className={`grid grid-cols-2 gap-2 ${compact ? 'text-[11px]' : 'text-xs'}`}>
         <Row icon={<Cpu className="w-3.5 h-3.5 text-indigo-400" />} label="Prompt" value={cell(prompt)} />
@@ -47,12 +49,12 @@ export const TokenGranularBreakdown: React.FC<TokenGranularBreakdownProps> = ({
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between p-2 rounded-xl bg-black/25 border border-white/5">
-      <div className="flex items-center gap-1.5 text-slate-400">
-        {icon}
-        <dt>{label}</dt>
+    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-black/25 border border-white/5 min-w-0">
+      <div className="flex items-center gap-1.5 text-slate-400 min-w-0 shrink">
+        <span className="shrink-0">{icon}</span>
+        <dt className="truncate">{label}</dt>
       </div>
-      <dd className="font-mono text-slate-100">{value}</dd>
+      <dd className="font-mono text-slate-100 shrink-0 text-right">{value}</dd>
     </div>
   );
 }
