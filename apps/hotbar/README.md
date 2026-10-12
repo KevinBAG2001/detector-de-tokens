@@ -12,24 +12,23 @@ Shell nativo **Tauri 2** (bandeja del sistema + ventana compacta) para métricas
 
 ## Desarrollo (Windows / Linux)
 
-Desde la raíz del monorepo:
+Desde la raíz del monorepo (tras `pnpm install`):
 
 ```bash
-pnpm install
-pnpm --filter @antigravity/local-ingest build
 pnpm --filter @antigravity/hotbar dev
 ```
 
-Esto compila el CLI de ingesta local y arranca `tauri dev` (Vite en `http://localhost:1420`).
+Un solo comando: compila ingesta local, arranca Vite en un puerto libre y lanza Tauri (el puerto y el `devUrl` se alinean automáticamente; sin pasos extra).
+
+Tras abrir el panel, la tarjeta **Google Antigravity** debe mostrar métricas o un mensaje tipo «sin sesiones» — no `EISDIR` ni «Salida vacía del CLI».
 
 ### Variables de entorno
 
-Igual que el servidor: opcionalmente `ANTIGRAVITY_LOGS_ROOT` apuntando al directorio `brain` de Antigravity (por defecto `~/.gemini/antigravity-ide/brain`).
+Opcionalmente `ANTIGRAVITY_LOGS_ROOT` apuntando al directorio `brain` de Antigravity (por defecto `~/.gemini/antigravity-ide/brain`).
 
 ## Build de escritorio
 
 ```bash
-pnpm --filter @antigravity/local-ingest build
 pnpm --filter @antigravity/hotbar build:desktop
 ```
 
@@ -42,7 +41,7 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 | Capa | Responsabilidad |
 |------|-----------------|
 | `@antigravity/local-ingest` | Parser JSONL, validación `validarRutaLogs`, snapshot CLI |
-| Comando Tauri `fetch_antigravity_snapshot` | Ejecuta `node packages/local-ingest/dist/cli/snapshot.js` |
+| Comando Tauri `fetch_antigravity_snapshot` | `node dist/cli/snapshot.js` (ruta relativa, cwd sin `\\?\`) en `packages/local-ingest`; fallback `pnpm run snapshot` en Windows |
 | UI React | Muestra métricas; stubs Cursor / procesos / Docker |
 
 ## Stubs (v1)
@@ -55,3 +54,4 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 - Clic izquierdo en el icono: mostrar/ocultar ventana.
 - Menú contextual: mostrar/ocultar, actualizar métricas, salir.
 - Cerrar la ventana la oculta (la app permanece en bandeja).
+- Al arrancar se muestra el **panel overlay** (sin barra de título ni entrada en la barra de tareas); la bandeja sirve para mostrar/ocultar (clic izquierdo) y menú (clic derecho).

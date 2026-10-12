@@ -56,7 +56,7 @@ export default function App() {
 
   return (
     <main className="hotbar-shell">
-      <header className="hotbar-header">
+      <header className="hotbar-header" data-tauri-drag-region>
         <div>
           <p className="hotbar-kicker">Detector de tokens</p>
           <h1>Antigravity Hotbar</h1>
