@@ -66,10 +66,13 @@ export default function App() {
   const quota = normalizarCuotaSnapshot(snapshot?.quota);
   const quotaDetail = quotaDetailMessage(quota, nowMs);
 
-  const sessionLabel =
-    snapshot?.sessionId?.slice(0, 18) ?? (snapshot?.available ? 'Sesión activa' : 'Sin sesión local');
+  const sessionLabel = snapshot?.sessionId?.slice(0, 18) ?? 'Sin dato';
 
-  const totalTokens = tokens?.totalAccumulated ?? (snapshot?.available ? 0 : null);
+  const totalTokens = tokens
+    ? typeof tokens.totalAccumulated === 'number'
+      ? tokens.totalAccumulated
+      : tokens.prompt + tokens.output + tokens.cached + tokens.thinking
+    : null;
 
   return (
     <main className="min-h-full w-full max-w-[420px] mx-auto px-2 py-2 flex flex-col gap-2 text-slate-100 select-none">
@@ -90,10 +93,10 @@ export default function App() {
       <KineticLiquidChamber
         compact
         totalTokens={totalTokens}
-        prompt={tokens?.prompt ?? 0}
-        output={tokens?.output ?? 0}
-        cached={tokens?.cached ?? 0}
-        thinking={tokens?.thinking ?? 0}
+        prompt={tokens?.prompt ?? null}
+        output={tokens?.output ?? null}
+        cached={tokens?.cached ?? null}
+        thinking={tokens?.thinking ?? null}
       />
 
       <TokenGranularBreakdown

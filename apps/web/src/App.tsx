@@ -46,7 +46,7 @@ export const App: React.FC = () => {
       tokens.prompt + tokens.output + tokens.cached + tokens.thinking)
     : null;
 
-  const sessionLabel = packet?.sessionId ?? 'Sin sesión en streaming';
+  const sessionLabel = packet?.sessionId ?? 'Sin dato';
   const modelName = packet?.model?.name;
 
   return (
@@ -107,10 +107,10 @@ export const App: React.FC = () => {
         <KineticLiquidChamber
           compact
           totalTokens={total}
-          prompt={tokens?.prompt ?? 0}
-          output={tokens?.output ?? 0}
-          cached={tokens?.cached ?? 0}
-          thinking={tokens?.thinking ?? 0}
+          prompt={tokens?.prompt ?? null}
+          output={tokens?.output ?? null}
+          cached={tokens?.cached ?? null}
+          thinking={tokens?.thinking ?? null}
         />
 
         <TokenGranularBreakdown

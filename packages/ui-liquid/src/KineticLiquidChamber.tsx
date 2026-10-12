@@ -5,34 +5,46 @@ import { formatTokenCountEs } from './lib/utils';
 
 export interface KineticLiquidChamberProps {
   totalTokens: number | null;
-  prompt?: number;
-  output?: number;
-  cached?: number;
-  thinking?: number;
+  prompt?: number | null;
+  output?: number | null;
+  cached?: number | null;
+  thinking?: number | null;
   /** Vista compacta para overlay hotbar (~360px) */
   compact?: boolean;
   className?: string;
 }
 
-/** Altura visual decorativa (no implica ventana de contexto ni límite oficial). */
-function decorativeFillLevel(total: number): number {
+/** Altura del fluido derivada solo del reparto real de tokens (sin ventana 2M ni %). */
+function compositionFillLevel(
+  prompt: number,
+  output: number,
+  cached: number,
+  thinking: number,
+  total: number,
+): number {
   if (total <= 0) return 8;
-  return Math.min(88, 14 + Math.log10(total + 1) * 16);
+  const dominant = Math.max(prompt, output, cached, thinking);
+  return 18 + Math.round((dominant / total) * 52);
 }
 
 export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
   totalTokens,
-  prompt = 0,
-  output = 0,
-  cached = 0,
-  thinking = 0,
+  prompt = null,
+  output = null,
+  cached = null,
+  thinking = null,
   compact = false,
   className = '',
 }) => {
   const [rippling, setRippling] = useState(false);
-  const hasData = totalTokens !== null;
+  const hasSeries = totalTokens !== null;
   const total = totalTokens ?? 0;
-  const fillLevel = hasData && total > 0 ? decorativeFillLevel(total) : 8;
+  const p = prompt ?? 0;
+  const o = output ?? 0;
+  const c = cached ?? 0;
+  const th = thinking ?? 0;
+  const fillLevel =
+    hasSeries && total > 0 ? compositionFillLevel(p, o, c, th, total) : 8;
 
   const springPercentage = useSpring(fillLevel, {
     stiffness: 90,
@@ -50,7 +62,7 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
   const heightStyle = useTransform(springPercentage, (v) => `${v}%`);
 
   const theme = useMemo(() => {
-    const cachedShare = total > 0 ? cached / total : 0;
+    const cachedShare = total > 0 ? c / total : 0;
     if (cachedShare > 0.45) {
       return {
         primaryColor: '#34D399',
@@ -59,7 +71,6 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
         waveTertiary: 'rgba(209, 250, 229, 0.2)',
         crestColor: '#34D399',
         glowShadow: '0 0 40px rgba(52,211,153,0.18)',
-        ambientBottom: 'bg-emerald-500/30',
         badgeBorder: 'border-emerald-400/30 text-emerald-300',
         textMetric: 'text-emerald-200',
         pingDot: 'bg-emerald-400',
@@ -72,12 +83,11 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
       waveTertiary: 'rgba(219, 252, 255, 0.2)',
       crestColor: '#00F0FF',
       glowShadow: '0 0 40px rgba(0,240,255,0.2)',
-      ambientBottom: 'bg-[#00F0FF]/30',
       badgeBorder: 'border-cyan-400/30 text-cyan-300',
       textMetric: 'text-cyan-200',
       pingDot: 'bg-[#00F0FF]',
     };
-  }, [cached, total]);
+  }, [c, total]);
 
   const chamberSize = compact ? 'w-44 h-44' : 'w-64 sm:w-72 h-64 sm:h-72';
 
@@ -132,7 +142,12 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
               style={{ height: heightStyle }}
             >
               <div className="w-[200%] h-full absolute -bottom-1 -left-[50%] opacity-85 animate-wave-slow">
-                <svg className="w-full h-full" style={{ fill: theme.wavePrimary }} preserveAspectRatio="none" viewBox="0 0 500 150">
+                <svg
+                  className="w-full h-full"
+                  style={{ fill: theme.wavePrimary }}
+                  preserveAspectRatio="none"
+                  viewBox="0 0 500 150"
+                >
                   <path d="M0.00,49.98 C150.00,140.00 349.81,-40.00 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
                 </svg>
               </div>
@@ -149,21 +164,18 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
                 Tokens acumulados
               </span>
               <span className={`text-2xl sm:text-3xl font-extrabold font-mono drop-shadow-lg ${theme.textMetric}`}>
-                {totalTokens === null ? 'Sin dato' : formatTokenCountEs(total)}
+                {!hasSeries ? 'Sin dato' : formatTokenCountEs(total)}
               </span>
-              {hasData && totalTokens === 0 && (
-                <span className="text-[10px] text-slate-500 mt-1">Sin actividad en la sesión</span>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 pt-3 border-t border-white/5 z-10 text-center text-[9px] font-mono">
-        <MetricChip label="Prompt" value={prompt} muted={!hasData} />
-        <MetricChip label="Output" value={output} muted={!hasData} />
-        <MetricChip label="Cached" value={cached} muted={!hasData} accent="text-emerald-300" />
-        <MetricChip label="Think" value={thinking} muted={!hasData} accent="text-violet-300" />
+        <MetricChip label="Prompt" value={prompt} unknown={!hasSeries} accent="text-slate-200" />
+        <MetricChip label="Output" value={output} unknown={!hasSeries} accent="text-slate-200" />
+        <MetricChip label="Cached" value={cached} unknown={!hasSeries} accent="text-emerald-300" />
+        <MetricChip label="Think" value={thinking} unknown={!hasSeries} accent="text-violet-300" />
       </div>
     </div>
   );
@@ -172,20 +184,21 @@ export const KineticLiquidChamber: React.FC<KineticLiquidChamberProps> = ({
 function MetricChip({
   label,
   value,
-  muted,
+  unknown,
   accent = 'text-slate-200',
 }: {
   label: string;
-  value: number;
-  muted: boolean;
+  value: number | null | undefined;
+  unknown: boolean;
   accent?: string;
 }) {
+  const display =
+    unknown || value === null || value === undefined ? 'Sin dato' : formatTokenCountEs(value);
+
   return (
     <div className="p-1.5 rounded-lg bg-slate-900/50 border border-white/5">
       <div className="text-slate-500 uppercase">{label}</div>
-      <div className={`text-[10px] font-bold mt-0.5 ${muted ? 'text-slate-600' : accent}`}>
-        {muted ? '—' : formatTokenCountEs(value)}
-      </div>
+      <div className={`text-[10px] font-bold mt-0.5 ${unknown ? 'text-slate-500' : accent}`}>{display}</div>
     </div>
   );
 }
