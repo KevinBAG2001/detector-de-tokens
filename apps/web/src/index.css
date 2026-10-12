@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@source "./**/*.{tsx,ts}";
+@source "../../../packages/ui-liquid/src/**/*.{tsx,ts}";
+
+@import "@antigravity/ui-liquid/styles.css";
 
 @layer base {
   :root {
@@ -50,3 +54,4 @@
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: 0 10px 30px -10px rgba(0, 240, 255, 0.15);
 }
+

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { CuotaAntigravityIdeStatus } from '../lib/quotaTypes';
 
 export interface AntigravityTokenSnapshot {
   source: 'antigravity';
@@ -11,6 +12,7 @@ export interface AntigravityTokenSnapshot {
     thinking: number;
     totalAccumulated: number;
   };
+  quota: CuotaAntigravityIdeStatus;
   message: string | null;
 }
 
