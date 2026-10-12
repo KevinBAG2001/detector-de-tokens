@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LiquidGlassCard } from '@/components/ui/liquid-weather-glass';
-import { Zap, Database, Cpu, Sparkles, DollarSign, Activity } from 'lucide-react';
+import { KineticLiquidChamber } from './KineticLiquidChamber';
+import { Zap, Database, Cpu, Sparkles, DollarSign, Activity, CircleDot, Layers } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export interface TokenMetricsProps {
@@ -18,6 +19,7 @@ export interface TokenMetricsProps {
   rpmLimit?: number;
   severity?: 'safe' | 'warning' | 'critical';
   fillPercentage?: number;
+  variant?: 'kinetic' | 'classic';
 }
 
 export const TokenLiquidCard: React.FC<TokenMetricsProps> = ({
@@ -35,7 +37,9 @@ export const TokenLiquidCard: React.FC<TokenMetricsProps> = ({
   rpmLimit = 360,
   severity,
   fillPercentage: propFillPercentage,
+  variant = 'kinetic',
 }) => {
+  const [activeVariant, setActiveVariant] = useState<'kinetic' | 'classic'>(variant);
   const totalUsed = promptTokens + outputTokens + (thinkingTokens || 0) + cachedTokens;
   const calculatedPercentage = Math.min(100, Math.round((totalUsed / maxTokens) * 1000) / 10);
   const fillPercentage = propFillPercentage !== undefined ? propFillPercentage : calculatedPercentage;
@@ -46,6 +50,32 @@ export const TokenLiquidCard: React.FC<TokenMetricsProps> = ({
     if (fillPercentage >= 85) computedSeverity = 'critical';
     else if (fillPercentage >= 70) computedSeverity = 'warning';
     else computedSeverity = 'safe';
+  }
+
+  if (activeVariant === 'kinetic') {
+    return (
+      <div className="w-full flex flex-col gap-2">
+        <div className="flex items-center justify-end px-2">
+          <button
+            onClick={() => setActiveVariant('classic')}
+            className="text-[10px] font-mono text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+            title="Cambiar a vista de tarjeta clásica"
+          >
+            <Layers className="w-3 h-3" />
+            <span>Ver Tarjeta Clásica</span>
+          </button>
+        </div>
+        <KineticLiquidChamber
+          fillPercentage={fillPercentage}
+          totalTokens={totalUsed}
+          maxTokens={maxTokens}
+          severity={computedSeverity}
+          velocityTokPerSec={148}
+          compressionRatio={3.8}
+          cacheSavingsPct={82}
+        />
+      </div>
+    );
   }
 
   let liquidColor = 'from-cyan-500/40 via-blue-600/30 to-indigo-600/40';
@@ -69,18 +99,30 @@ export const TokenLiquidCard: React.FC<TokenMetricsProps> = ({
   }
 
   return (
-    <LiquidGlassCard
-      draggable={true}
-      expandable={true}
-      width="440px"
-      expandedWidth="520px"
-      borderRadius="28px"
-      blurIntensity="xl"
-      shadowIntensity="lg"
-      glowIntensity="md"
-      className={`p-6 text-white border border-white/10 bg-slate-950/40 overflow-hidden select-none transition-all duration-500 ${glowColor}`}
-    >
-      {/* Fondo de fluido líquido dinámico */}
+    <div className="w-full flex flex-col gap-2">
+      <div className="flex items-center justify-end px-2">
+        <button
+          onClick={() => setActiveVariant('kinetic')}
+          className="text-[10px] font-mono text-cyan-300 hover:text-cyan-200 flex items-center gap-1 transition-colors"
+          title="Cambiar a cilindro cinético"
+        >
+          <CircleDot className="w-3 h-3 text-cyan-400" />
+          <span>Ver Cilindro Cinético</span>
+        </button>
+      </div>
+      <LiquidGlassCard
+        draggable={true}
+        expandable={true}
+        width="440px"
+        expandedWidth="520px"
+        borderRadius="28px"
+        blurIntensity="xl"
+        shadowIntensity="lg"
+        glowIntensity="md"
+        className={`p-6 text-white border border-white/10 bg-slate-950/40 overflow-hidden select-none transition-all duration-500 ${glowColor}`}
+      >
+        {/* Fondo de fluido líquido dinámico */}
+
       <div 
         className="absolute inset-x-0 bottom-0 pointer-events-none transition-all duration-700 ease-out z-0"
         style={{ height: `${Math.max(5, Math.min(100, fillPercentage))}%` }}
@@ -196,5 +238,7 @@ export const TokenLiquidCard: React.FC<TokenMetricsProps> = ({
         </div>
       </div>
     </LiquidGlassCard>
+    </div>
   );
 };
+
