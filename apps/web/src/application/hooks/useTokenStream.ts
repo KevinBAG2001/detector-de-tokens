@@ -6,7 +6,7 @@ export interface TokenTelemetryStreamPacket {
   sessionId: string;
   model: {
     name: string;
-    contextWindowLimit: number;
+    contextWindowLimit?: number;
   };
   tokens: {
     prompt: number;
@@ -15,39 +15,67 @@ export interface TokenTelemetryStreamPacket {
     thinking: number;
     totalAccumulated: number;
   };
-  gauge: {
+  gauge?: {
     fillPercentage: number;
     severity: 'safe' | 'warning' | 'critical';
     liquidColorHex: string;
   };
-  rateLimits: {
+  rateLimits?: {
     tpmRemaining: number;
     tpmLimit: number;
     rpmRemaining: number;
     rpmLimit: number;
     resetInSeconds: number;
   };
-  financial: {
+  financial?: {
     costUSD: number;
     savingsUSD: number;
   };
 }
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
 
-export function useTokenStream() {
+const MAX_WS_ATTEMPTS = 5;
+const WS_BASE_DELAY_MS = 2500;
+
+export function useTokenStream(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const [packet, setPacket] = useState<TokenTelemetryStreamPacket | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>('connecting');
-  const [latencyMs, setLatencyMs] = useState<number>(12);
+  const [status, setStatus] = useState<ConnectionStatus>('idle');
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wsGivingUp, setWsGivingUp] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const attemptsRef = useRef(0);
+  const warnedRef = useRef(false);
+
+  const cleanupSocket = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
+    if (!enabled || wsGivingUp) return;
+
+    cleanupSocket();
+
     try {
-      const wsUrl = (import.meta as any).env?.VITE_WS_URL || 'ws://localhost:3001/ws';
+      const wsUrl =
+        (import.meta as ImportMeta & { env?: { VITE_WS_URL?: string } }).env?.VITE_WS_URL ??
+        'ws://localhost:3001/ws';
       setStatus('connecting');
       setError(null);
 
@@ -55,26 +83,26 @@ export function useTokenStream() {
       socketRef.current = ws;
 
       ws.onopen = () => {
+        attemptsRef.current = 0;
         setStatus('connected');
         setError(null);
 
-        // Ping periódico para medir latencia
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             const start = performance.now();
             ws.send(JSON.stringify({ type: 'ping' }));
-            (ws as any)._pingStart = start;
+            (ws as WebSocket & { _pingStart?: number })._pingStart = start;
           }
-        }, 5000);
+        }, 8000);
       };
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(event.data);
+          const message = JSON.parse(event.data as string);
           if (message.type === 'telemetry_packet' && message.data) {
-            setPacket(message.data);
+            setPacket(message.data as TokenTelemetryStreamPacket);
           } else if (message.type === 'pong') {
-            const start = (ws as any)._pingStart;
+            const start = (ws as WebSocket & { _pingStart?: number })._pingStart;
             if (start) {
               setLatencyMs(Math.round(performance.now() - start));
             }
@@ -84,9 +112,11 @@ export function useTokenStream() {
         }
       };
 
-      ws.onerror = (err) => {
-        console.warn('WebSocket error:', err);
-        setError('Error de comunicación con el motor de streaming');
+      ws.onerror = () => {
+        if (!warnedRef.current) {
+          warnedRef.current = true;
+        }
+        setError('WebSocket local no disponible');
       };
 
       ws.onclose = () => {
@@ -95,45 +125,55 @@ export function useTokenStream() {
           clearInterval(pingIntervalRef.current);
           pingIntervalRef.current = null;
         }
-        // Intentar reconectar después de 2.5s
+
+        if (!enabled) return;
+
+        attemptsRef.current += 1;
+        if (attemptsRef.current >= MAX_WS_ATTEMPTS) {
+          setWsGivingUp(true);
+          return;
+        }
+
+        const delay = WS_BASE_DELAY_MS * attemptsRef.current;
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
-        }, 2500);
+        }, delay);
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('disconnected');
-      setError(err?.message || 'Fallo de conexión');
+      setError(err instanceof Error ? err.message : 'Fallo de conexión');
     }
-  }, []);
+  }, [cleanupSocket, enabled, wsGivingUp]);
 
   useEffect(() => {
+    if (!enabled) {
+      cleanupSocket();
+      setStatus('idle');
+      setWsGivingUp(false);
+      attemptsRef.current = 0;
+      warnedRef.current = false;
+      return;
+    }
+
+    setWsGivingUp(false);
+    attemptsRef.current = 0;
+    warnedRef.current = false;
     connect();
 
     return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
+      cleanupSocket();
     };
-  }, [connect]);
+  }, [enabled, connect, cleanupSocket]);
 
   const switchSession = useCallback((sessionId: string, modelId?: string) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'switch_session',
-        sessionId,
-        modelId,
-      }));
-    }
-  }, []);
-
-  const setModel = useCallback((modelId: 'gemini-2.5-pro' | 'gemini-2.5-flash') => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'set_model',
-        modelId,
-      }));
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: 'switch_session',
+          sessionId,
+          modelId,
+        }),
+      );
     }
   }, []);
 
@@ -142,8 +182,8 @@ export function useTokenStream() {
     status,
     latencyMs,
     error,
+    wsGivingUp,
     switchSession,
-    setModel,
     reconnect: connect,
   };
 }

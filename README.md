@@ -16,6 +16,8 @@ Al orquestar flujos de trabajo con agentes autónomos en **Google Antigravity** 
 **Antigravity Liquid Token Lens** resuelve este problema mediante una arquitectura local-first reactiva.
 
 > **Dirección de producto:** la UX principal evoluciona hacia el **hotbar nativo** (`apps/hotbar`, Tauri 2 + bandeja del sistema en Windows/Linux). La SPA web (`apps/web`) y el motor Node (`apps/server`) siguen en el monorepo como vista secundaria y API local; no se eliminan en esta línea de trabajo.
+>
+> **Diseño UI:** la referencia vive en `apps/web` + `@antigravity/ui-liquid`. No uses ni versiones la carpeta local `.frontend/` (mockups HTML); no forma parte del monorepo.
 
 Capacidades destacadas:
 - 🧪 **Metáfora Visual de Fluido Líquido:** Un contenedor de cristal translúcido que simula la subida de un líquido con oleaje senoidal dinámico y filtros de refracción óptica SVG (`feTurbulence` / `feDisplacementMap`).

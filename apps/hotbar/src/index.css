@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* Tailwind v4: escanear clases del hotbar y del paquete compartido */
+@source "./**/*.{tsx,ts}";
+@source "../../../packages/ui-liquid/src/**/*.{tsx,ts}";
+
+@import "@antigravity/ui-liquid/styles.css";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --hotbar-bg: #090d16;
+    --hotbar-surface: #0f131b;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--hotbar-bg);
+    color: #f1f5f9;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Ventana Tauri sin decoraciones: fondo transparente fuera del shell */
+  body.hotbar-tauri {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .hotbar-shell {
+    background: color-mix(in srgb, var(--hotbar-bg) 96%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  }
+
+  .glass-panel {
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}

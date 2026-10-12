@@ -1,13 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "node:path";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
 const host = process.env.TAURI_DEV_HOST;
 const devPort = Number(process.env.HOTBAR_DEV_PORT) || 1420;
+const repoRoot = path.resolve(__dirname, "../..");
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -19,6 +22,9 @@ export default defineConfig(() => ({
     port: devPort,
     strictPort: false,
     host: host || false,
+    fs: {
+      allow: [repoRoot],
+    },
     hmr: host
       ? {
           protocol: "ws",
