@@ -74,7 +74,8 @@ fn spawn_snapshot_cli(node: &str, package_dir: &Path) -> std::io::Result<std::pr
 }
 
 fn parse_snapshot_stdout(stdout: &[u8], stderr: &[u8]) -> Result<AntigravitySnapshot, String> {
-    let text = String::from_utf8_lossy(stdout).trim();
+    let stdout_text = String::from_utf8_lossy(stdout);
+    let text = stdout_text.trim();
     if text.is_empty() {
         return Err(format!(
             "Salida vacía del CLI de ingesta: {}",
