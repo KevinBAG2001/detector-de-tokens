@@ -20,11 +20,33 @@ pub struct TokenBreakdown {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct QuotaSnapshot {
+    pub estado: String,
+    pub reset_at: Option<String>,
+    pub source_file: Option<String>,
+    pub detected_at: Option<String>,
+}
+
+impl Default for QuotaSnapshot {
+    fn default() -> Self {
+        Self {
+            estado: "desconocido".to_string(),
+            reset_at: None,
+            source_file: None,
+            detected_at: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AntigravitySnapshot {
     pub source: String,
     pub available: bool,
     pub session_id: Option<String>,
     pub tokens: TokenBreakdown,
+    #[serde(default)]
+    pub quota: QuotaSnapshot,
     pub message: Option<String>,
 }
 
@@ -105,7 +127,34 @@ fn apply_snapshot_child_env(command: &mut Command) {
         }
         command.env(&key, sanitize_env_value(&key, value));
     }
+    ensure_windows_appdata_for_child(command);
 }
+
+/// Node en Windows usa APPDATA para rutas por defecto; el env saneado puede dejarla vacía.
+#[cfg(windows)]
+fn ensure_windows_appdata_for_child(command: &mut Command) {
+    let needs_fallback = match std::env::var("APPDATA") {
+        Ok(value) => value.trim().is_empty(),
+        Err(_) => true,
+    };
+
+    if !needs_fallback {
+        return;
+    }
+
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        let trimmed = userprofile.trim();
+        if !trimmed.is_empty() {
+            let roaming = PathBuf::from(trimmed)
+                .join("AppData")
+                .join("Roaming");
+            command.env("APPDATA", normalize_path_for_subprocess(roaming));
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn ensure_windows_appdata_for_child(_command: &mut Command) {}
 
 fn resolve_node_program() -> String {
     #[cfg(windows)]
@@ -301,4 +350,65 @@ pub fn run() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parsea_snapshot_con_campo_quota() {
+        let json = r#"{
+            "source": "antigravity",
+            "available": true,
+            "sessionId": "abc",
+            "tokens": {
+                "prompt": 1,
+                "output": 2,
+                "cached": 0,
+                "thinking": 0,
+                "totalAccumulated": 3
+            },
+            "quota": {
+                "estado": "agotado",
+                "resetAt": "2026-09-20T12:00:00.000Z",
+                "sourceFile": "C:\\logs\\ls-main.log",
+                "detectedAt": "2026-09-17T19:12:39.555Z"
+            },
+            "message": null
+        }"#;
+
+        let parsed: AntigravitySnapshot =
+            parse_snapshot_stdout(json.as_bytes(), b"").expect("debe parsear");
+
+        assert_eq!(parsed.quota.estado, "agotado");
+        assert_eq!(
+            parsed.quota.reset_at.as_deref(),
+            Some("2026-09-20T12:00:00.000Z")
+        );
+        assert_eq!(parsed.session_id.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn quota_desconocida_si_falta_en_json_legacy() {
+        let json = r#"{
+            "source": "antigravity",
+            "available": false,
+            "sessionId": null,
+            "tokens": {
+                "prompt": 0,
+                "output": 0,
+                "cached": 0,
+                "thinking": 0,
+                "totalAccumulated": 0
+            },
+            "message": "sin datos"
+        }"#;
+
+        let parsed: AntigravitySnapshot =
+            parse_snapshot_stdout(json.as_bytes(), b"").expect("debe parsear");
+
+        assert_eq!(parsed.quota.estado, "desconocido");
+        assert!(parsed.quota.reset_at.is_none());
+    }
 }

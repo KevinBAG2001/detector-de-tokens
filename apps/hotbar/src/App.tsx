@@ -4,6 +4,8 @@ import { fetchAntigravitySnapshot, type AntigravityTokenSnapshot } from './adapt
 import { getCursorTokenSnapshot } from './adapters/cursorAdapter';
 import { getDockerPanelState } from './adapters/dockerAdapter';
 import { getProcessesPanelState } from './adapters/processesAdapter';
+import { quotaDetailMessage, quotaEstadoLabel } from './lib/quotaDisplay';
+import { normalizarCuotaSnapshot } from './lib/quotaTypes';
 import './App.css';
 
 const REFRESH_MS = 15_000;
@@ -16,6 +18,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<AntigravityTokenSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const cursorStub = getCursorTokenSnapshot();
   const processesStub = getProcessesPanelState();
@@ -44,6 +47,11 @@ export default function App() {
   }, [refresh]);
 
   useEffect(() => {
+    const tick = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
     const unlisten = listen('hotbar:refresh', () => {
       void refresh();
     });
@@ -53,6 +61,8 @@ export default function App() {
   }, [refresh]);
 
   const tokens = snapshot?.tokens;
+  const quota = normalizarCuotaSnapshot(snapshot?.quota);
+  const quotaDetail = quotaDetailMessage(quota, nowMs);
 
   return (
     <main className="hotbar-shell">
@@ -72,6 +82,18 @@ export default function App() {
         {!error && snapshot && !snapshot.available && (
           <p className="hotbar-muted">{snapshot.message ?? 'Sin datos locales'}</p>
         )}
+        <div
+          className={`hotbar-quota hotbar-quota--${quota.estado}`}
+          aria-label="Cuota individual Antigravity"
+        >
+          <p className="hotbar-quota-kicker">Uso semanal (inferido)</p>
+          <p className="hotbar-quota-estado">{quotaEstadoLabel(quota.estado)}</p>
+          <p className="hotbar-quota-detail">{quotaDetail}</p>
+          <p className="hotbar-quota-source">
+            Derivado de logs locales del IDE Antigravity; no incluye porcentaje ni límite oficial.
+          </p>
+        </div>
+
         {tokens && snapshot?.available && (
           <>
             <p className="hotbar-session">Sesión: {snapshot.sessionId ?? '—'}</p>

@@ -11,7 +11,7 @@
     "build:desktop": "tauri build",
     "preview": "vite preview",
     "lint": "echo \"Linting hotbar...\"",
-    "test": "echo \"Testing hotbar...\"",
+    "test": "vitest run",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -28,6 +28,7 @@
     "@types/node": "^20.14.10",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.5.4",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vitest": "^2.1.0"
   }
 }

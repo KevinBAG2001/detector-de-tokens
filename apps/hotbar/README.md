@@ -40,8 +40,8 @@ Artefactos en `apps/hotbar/src-tauri/target/release/`.
 
 | Capa | Responsabilidad |
 |------|-----------------|
-| `@antigravity/local-ingest` | Parser JSONL, validación `validarRutaLogs`, snapshot CLI |
-| Comando Tauri `fetch_antigravity_snapshot` | `node dist/cli/snapshot.js` (ruta relativa, cwd sin `\\?\`) en `packages/local-ingest`; fallback `pnpm run snapshot` en Windows |
+| `@antigravity/local-ingest` | Parser JSONL, validación `validarRutaLogs`, cuota IDE (429) vía `ANTIGRAVITY_IDE_LOGS_ROOT`, snapshot CLI |
+| Comando Tauri `fetch_antigravity_snapshot` | `node dist/cli/snapshot.js` (ruta relativa, cwd sin `\\?\`) en `packages/local-ingest`; fallback `pnpm run snapshot` en Windows. El struct Rust reexpone el campo `quota` al WebView. |
 | UI React | Muestra métricas; stubs Cursor / procesos / Docker |
 
 ## Stubs (v1)
