@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.antigravity.hotbar",
   "build": {
-    "beforeDevCommand": "pnpm --filter @antigravity/local-ingest build && pnpm dev:ui",
+    "beforeDevCommand": "pnpm --filter @antigravity/local-ingest... build && pnpm dev:ui",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm --filter @antigravity/local-ingest build && pnpm build:ui",
     "frontendDist": "../dist"
